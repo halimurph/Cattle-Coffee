@@ -1,0 +1,12 @@
+//
+//  Notifications.swift
+//  beef+brew
+//
+//  Created by Hali Murphy on 11/16/25.
+//
+
+import Foundation
+
+extension Notification.Name {
+    static let showLearnMore = Notification.Name("showLearnMore")
+}
