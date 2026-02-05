@@ -1,0 +1,169 @@
+// UserSession.swift
+import Foundation
+import Combine
+import UserNotifications
+
+final class UserSession: ObservableObject {
+    @Published var firstName: String = ""
+    @Published var isLoggedIn: Bool = false
+    @Published var paymentMethods: [String] = []
+    @Published var billingHistory: [BillingRecord] = []
+    @Published var currentPlan: SubscriptionPlan? = nil
+    @Published var notificationsEnabled: Bool = false
+
+    @Published var lastName: String = ""
+    @Published var email: String = ""
+    @Published var phone: String = ""
+    @Published var birthday: String = ""
+    @Published var password: String = ""
+
+    @Published var subscriptionPlans: [SubscriptionPlan] = [
+        SubscriptionPlan(
+            name: "Weekly",
+            header: "WEEKLY PLAN",
+            perks: ["5 drinks per week", "Skip any week", "Free branded cup"],
+            savingsLine: "SAVED $3/WEEK",
+            renewalLine: "Renewal: XX/XX",
+            savingsEmphasis: true
+        ),
+        SubscriptionPlan(
+            name: "Monthly",
+            header: "MONTHLY PLAN",
+            perks: ["20 drinks per month", "Rollover unused drinks", "Free branded cup", "Priority pickup"],
+            savingsLine: "SAVED $18/MONTH",
+            renewalLine: "Renewal: XX/XX",
+            savingsEmphasis: true
+        ),
+        SubscriptionPlan(
+            name: "School Year",
+            header: "SCHOOL YEAR PLAN",
+            perks: ["Unlimited drinks", "Rollover unused drinks", "Priority pickup", "Free branded cup"],
+            savingsLine: "SAVED $240/YEAR",
+            renewalLine: "Renewal: XX/XX",
+            savingsEmphasis: true
+        )
+    ]
+
+    @Published var totalLocalSpending: Double = 0.0 {
+        didSet {
+            checkForAchievementUnlock()
+        }
+    }
+
+    // MARK: - Billing / purchases
+
+    func addBillingRecord(itemName: String, amount: Double) {
+        let record = BillingRecord(
+            date: Date(),
+            itemName: itemName,
+            amount: amount
+        )
+        // newest first
+        billingHistory.insert(record, at: 0)
+    }
+
+    /// Convenience: use this everywhere you log an order
+    func recordPurchase(itemName: String, amount: Double) {
+        addBillingRecord(itemName: itemName, amount: amount)
+        totalLocalSpending += amount          // triggers achievements + notifications
+    }
+}
+
+struct BillingRecord: Identifiable {
+    let id = UUID()
+    let date: Date
+    let itemName: String
+    let amount: Double
+}
+
+// MARK: - Impact stats for Account / ImpactSection
+extension UserSession {
+
+    /// All orders (one-time + subscription)
+    var totalOrders: Int {
+        billingHistory.count
+    }
+
+    /// Only orders that actually charged money
+    var totalOneTimeOrders: Int {
+        billingHistory.filter { $0.amount > 0 }.count
+    }
+
+    /// Subscription pickups (logged as amount == 0)
+    var totalSubscriptionOrders: Int {
+        billingHistory.filter { $0.amount == 0 }.count
+    }
+
+    /// Simple monthly aggregation for a bar chart
+    var monthlySpending: [(label: String, amount: Double)] {
+        guard !billingHistory.isEmpty else { return [] }
+
+        let calendar = Calendar.current
+
+        // group by year+month
+        let grouped = Dictionary(grouping: billingHistory) { record -> DateComponents in
+            calendar.dateComponents([.year, .month], from: record.date)
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM" // Jan, Feb, etc.
+
+        return grouped.compactMap { components, records in
+            guard
+                let year = components.year,
+                let _ = components.month,
+                let date = calendar.date(from: components)
+            else { return nil }
+
+            let total = records.reduce(0) { $0 + $1.amount }
+            let label = "\(formatter.string(from: date)) \(String(year % 100))" // "Jan 25"
+            return (label: label, amount: total)
+        }
+        .sorted { $0.label < $1.label }
+    }
+}
+
+// MARK: - Achievement Unlock Logic
+extension UserSession {
+    var achievementsUnlocked: Int {
+        switch totalLocalSpending {
+        case 2500...: return 5
+        case 1000...: return 4
+        case 500...:  return 3
+        case 200...:  return 2
+        case 50...:   return 1
+        default:      return 0
+        }
+    }
+}
+
+// MARK: - Local notification triggers
+extension UserSession {
+    fileprivate func checkForAchievementUnlock() {
+        let thresholds = [50.0, 200.0, 500.0, 1000.0, 2500.0]
+
+        for threshold in thresholds where totalLocalSpending >= threshold {
+            let key = "notified_\(Int(threshold))"
+
+            if !UserDefaults.standard.bool(forKey: key) {
+                sendAchievementNotification(amount: threshold)
+                UserDefaults.standard.set(true, forKey: key)
+            }
+        }
+    }
+
+    fileprivate func sendAchievementNotification(amount: Double) {
+        let content = UNMutableNotificationContent()
+        content.title = "New Achievement Unlocked!"
+        content.body = "You’ve now spent $\(Int(amount)) locally — your community thanks you. 🧡"
+        content.sound = .default
+
+        let request = UNNotificationRequest(
+            identifier: UUID().uuidString,
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        )
+
+        UNUserNotificationCenter.current().add(request)
+    }
+}
