@@ -1,0 +1,19 @@
+//
+//  CartManager.swift
+//  beef+brew
+//
+//  Created by Hali Murphy on 11/24/25.
+//
+
+import SwiftUI
+import Foundation
+import Combine   // 👈 REQUIRED
+
+class CartManager: ObservableObject {
+    @Published var items: [CoffeeModel] = []
+
+    var isEmpty: Bool {
+        items.isEmpty
+    }
+}
+
