@@ -1,0 +1,178 @@
+import SwiftUI
+
+enum ForgotFlowStep {
+    case none       // normal sign-in
+    case phone      // entering phone
+    case verify     // entering verification code
+    case reset      // reset password
+}
+
+struct SignInPopupView: View {
+    let closeAction: () -> Void
+    let onAuthenticated: () -> Void   // 👈 called on login or reset
+    
+    @State private var step: ForgotFlowStep = .none
+    
+    @State private var email = ""
+    @State private var password = ""
+    @State private var phone = ""
+    @State private var verification = ""
+    @State private var newPassword = ""
+    @State private var confirmNewPassword = ""
+    
+    private let dark = Color(red: 0.145, green: 0.098, blue: 0.051)
+    private let gold = Color(red: 0.851, green: 0.537, blue: 0.157)
+    
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    Text(titleForStep)
+                        .font(.custom("Konkhmer Sleokchher", size: 18))
+                        .foregroundColor(dark)
+                        .padding(.top, 60)
+                    
+                    Spacer().frame(height: 30)
+                    
+                    // STEP 1 — Normal sign-in
+                    if step == .none {
+                        formField("Email", text: $email)
+                        formField("Password", text: $password, secure: true)
+                        
+                        HStack {
+                            Spacer()
+                            Button {
+                                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                    step = .phone
+                                }
+                            } label: {
+                                Text("Forgot password?")
+                                    .font(.custom("Konkhmer Sleokchher", size: 11))
+                                    .foregroundColor(gold)
+                                    .opacity(0.85)
+                            }
+                        }
+                        .padding(.trailing, 4)
+                        .padding(.top, -12)
+                        
+                        mainButton(title: "SIGN IN") {
+                            // TODO: validate/login
+                            onAuthenticated()
+                            closeAction()
+                        }
+                    }
+                    
+                    // STEP 2 — Phone number
+                    if step == .phone {
+                        formField("Phone Number", text: $phone)
+                            .keyboardType(.phonePad)
+                        
+                        mainButton(title: "CONFIRM") {
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                step = .verify
+                            }
+                        }
+                    }
+                    
+                    // STEP 3 — Verification code
+                    if step == .verify {
+                        formField("Phone Number", text: $phone)
+                            .disabled(true)
+                            .opacity(0.7)
+                        
+                        formField("Verification Code", text: $verification)
+                            .keyboardType(.numberPad)
+                        
+                        mainButton(title: "CONFIRM") {
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                step = .reset
+                            }
+                        }
+                    }
+                    
+                    // STEP 4 — Reset password
+                    if step == .reset {
+                        formField("New Password", text: $newPassword, secure: true)
+                        formField("Confirm New Password", text: $confirmNewPassword, secure: true)
+                        
+                        mainButton(title: "RESET") {
+                            // TODO: send new password
+                            onAuthenticated()
+                            closeAction()
+                        }
+                    }
+                    
+                    Spacer().frame(height: 40)
+                }
+                .padding(.horizontal, 40)
+                .padding(.bottom, 60)
+            }
+            
+            Button(action: closeAction) {
+                Image(systemName: "xmark")
+                    .foregroundColor(dark)
+                    .font(.system(size: 22, weight: .bold))
+            }
+            .padding(.top, 48)
+            .padding(.trailing, 32)
+        }
+    }
+    
+    // MARK: - Helpers
+    
+    private var titleForStep: String {
+        switch step {
+        case .none:   return "SIGN IN"
+        case .phone:  return "FORGOT PASSWORD"
+        case .verify: return "VERIFICATION"
+        case .reset:  return "RESET PASSWORD"
+        }
+    }
+    
+    @ViewBuilder
+    private func formField(_ label: String, text: Binding<String>, secure: Bool = false) -> some View {
+        ZStack(alignment: .leading) {
+            Text(label)
+                .font(.custom("Konkhmer Sleokchher", size: 13))
+                .foregroundColor(dark.opacity(text.wrappedValue.isEmpty ? 0.35 : 1))
+                .offset(y: text.wrappedValue.isEmpty ? 0 : -22)
+                .scaleEffect(text.wrappedValue.isEmpty ? 1.0 : 0.9, anchor: .leading)
+                .animation(.spring(response: 0.35, dampingFraction: 0.9), value: text.wrappedValue)
+            
+            VStack(alignment: .leading, spacing: 6) {
+                Spacer().frame(height: 8)
+                if secure {
+                    SecureField("", text: text)
+                        .textInputAutocapitalization(.never)
+                } else {
+                    TextField("", text: text)
+                        .textInputAutocapitalization(.never)
+                }
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(text.wrappedValue.isEmpty ? dark : gold)
+                    .opacity(0.85)
+            }
+        }
+        .padding(.top, 18)
+    }
+    
+    private func mainButton(title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.custom("Konkhmer Sleokchher", size: 15))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 18)
+                .background(
+                    RoundedRectangle(cornerRadius: 40)
+                        .fill(gold)
+                )
+        }
+        .padding(.top, 60)
+    }
+}
+
+#Preview {
+    SignInPopupView(closeAction: {}, onAuthenticated: {})
+}
