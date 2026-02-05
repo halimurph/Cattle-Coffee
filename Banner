@@ -1,0 +1,111 @@
+import SwiftUI
+
+struct Banner: View {
+    @State private var currentIndex = 0
+    let closeAction: () -> Void
+    let learnMoreAction: () -> Void
+
+    private let phrases = [
+        "AFFORDABLE & LOCAL.",
+        "NUTRIENT-RICH.",
+        "REVERSING RURAL DOOM LOOP",
+        "— ONE CUP AT A TIME."
+    ]
+
+    var body: some View {
+        ZStack {
+            // Brown bar that covers the top and feels "attached" to the safe area
+            Rectangle()
+                .fill(Color(red: 0.562, green: 0.388, blue: 0.213))
+                .frame(height: 140)
+                .ignoresSafeArea(edges: .top)
+
+            // Center text stack
+            VStack(spacing: 6) {
+                // rotating headline
+                Text(phrases[currentIndex])
+                    .font(.custom(
+                        "KonkhmerSleokchher-Regular",
+                        size: currentIndex == 2 ? 18 : 25   // smaller ONLY for phrase 3
+                    ))
+                    .foregroundColor(Color(red: 0.969, green: 0.949, blue: 0.929))
+                    .animation(.easeInOut, value: currentIndex)
+
+                Button(action: learnMoreAction) {
+                    Text("Learn More")
+                        .font(.custom("KonkhmerSleokchher-Regular", size: 15))
+                        .foregroundColor(Color(red: 0.969, green: 0.949, blue: 0.929))
+                }
+
+
+                Text("⌄")
+                    .font(.custom("KonkhmerSleokchher-Regular", size: 15))
+                    .foregroundColor(Color(red: 0.969, green: 0.949, blue: 0.929))
+                    .padding(.top, -15)
+            }
+            .padding(.top, -50)   // keeps text visually centered under the Dynamic Island
+
+            // Close button on the right
+            HStack {
+                Spacer()
+                Button(action: closeAction) {
+                    CloseButton()
+                }
+                .padding(.trailing, 24)
+                .padding(.top, -50)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .shadow(color: .black.opacity(0.3), radius: 6, y: 6)
+        .onAppear {
+            // auto-cycle headlines every 3 seconds
+            Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { _ in
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    currentIndex = (currentIndex + 1) % phrases.count
+                }
+            }
+        }
+    }
+}
+extension Notification.Name {
+    static let learnMoreTapped = Notification.Name("learnMoreTapped")
+}
+
+
+struct CloseButton: View {
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(Color.clear)
+                .frame(width: 25.96, height: 3)
+                .overlay(
+                    Rectangle()
+                        .fill(Color(red: 0.969, green: 0.949, blue: 0.929))
+                        .frame(height: 3)
+                )
+                .rotationEffect(.degrees(-129.60))
+
+            Rectangle()
+                .fill(Color.clear)
+                .frame(width: 25.96, height: 3)
+                .overlay(
+                    Rectangle()
+                        .fill(Color(red: 0.969, green: 0.949, blue: 0.929))
+                        .frame(height: 3)
+                )
+                .rotationEffect(.degrees(-50.40))
+        }
+        .frame(width: 17.05, height: 20.75)
+    }
+}
+
+#Preview {
+    ZStack {
+        Color(red: 0.969, green: 0.949, blue: 0.929).ignoresSafeArea()
+        Banner(
+            closeAction: {},
+            learnMoreAction: {}
+        )
+    }
+}
+
