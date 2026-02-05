@@ -1,0 +1,196 @@
+//
+//  HowItWorksView.swift
+//  beef+brew
+//
+//  Created by Hali Murphy on 11/16/25.
+//
+
+import SwiftUI
+
+struct HowItWorksView: View {
+    let onOrderNow: () -> Void
+    
+    /// Shared layout constants for the circle column + line
+    private let circleDiameter: CGFloat = 64
+    private let circleLeading: CGFloat = 40      // left inset for the circles
+    
+    var body: some View {
+        ZStack {
+            // BACKGROUND
+            Color(red: 0.65, green: 0.22, blue: 0.13)
+                .ignoresSafeArea()
+            
+            // VERTICAL LINE that passes through the center of the circles
+            VStack {
+                Spacer().frame(height: 185)
+                Rectangle()
+                    .fill(Color.white.opacity(0.5))
+                    .frame(width: 1, height: 410)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, circleLeading + circleDiameter / 2)
+
+            
+            // MAIN CONTENT
+            VStack(alignment: .leading, spacing: 48) {
+                
+                // HEADER — matches Nutritional Highlights title
+                Text("HOW IT WORKS")
+                    .font(.custom("Konkhmer Sleokchher", size: 35))
+                    .foregroundColor(Color(red: 0.97, green: 0.95, blue: 0.93))
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 80)
+                    .padding(.bottom, 14)
+                
+                // STEP 1
+                StepRow(
+                    number: "1",
+                    checked: true,
+                    title: "ORDER BY 12PM",
+                    subtitle: "PLACE YOUR ORDER BEFORE THE CUTOFF",
+                    timerText: "6h 23m remaining",
+                    showsButton: true,
+                    circleDiameter: circleDiameter,
+                    circleLeading: circleLeading,
+                    onOrderNow: onOrderNow        // ← FIXED: comma added + callback passed
+                )
+                
+                // STEP 2
+                StepRow(
+                    number: "2",
+                    checked: true,
+                    title: "WE PREPARE",
+                    subtitle: "FRESH PREPERATION STARTS AT 7AM",
+                    timerText: nil,
+                    showsButton: false,
+                    circleDiameter: circleDiameter,
+                    circleLeading: circleLeading,
+                    onOrderNow: {}                // required parameter even if unused
+                )
+                
+                // STEP 3
+                StepRow(
+                    number: "3",
+                    checked: false,
+                    title: "READY BY 8AM",
+                    subtitle: "YOUR ORDER IS READY FOR PICKUP",
+                    timerText: nil,
+                    showsButton: false,
+                    circleDiameter: circleDiameter,
+                    circleLeading: circleLeading,
+                    onOrderNow: {}
+                )
+                
+                // STEP 4
+                StepRow(
+                    number: "4",
+                    checked: false,
+                    title: "QUICK PICKUP",
+                    subtitle: "GRAB AND GO IN UNDER 30 SECONDS",
+                    timerText: nil,
+                    showsButton: false,
+                    circleDiameter: circleDiameter,
+                    circleLeading: circleLeading,
+                    onOrderNow: {}
+                )
+                
+                // SAVE MORE BUTTON
+                Button(action: {}) {
+                    Text("SAVE MORE")
+                        .font(.custom("Konkhmer Sleokchher", size: 18))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.white, lineWidth: 1)
+                        )
+                }
+                .padding(.horizontal, 40)
+                .padding(.bottom, 40)
+            }
+            .padding(.bottom, 200)
+        }
+    }
+}
+
+
+// MARK: - Step Row Component
+
+struct StepRow: View {
+    let number: String
+    let checked: Bool
+    let title: String
+    let subtitle: String
+    let timerText: String?
+    let showsButton: Bool
+    
+    let circleDiameter: CGFloat
+    let circleLeading: CGFloat
+    let onOrderNow: () -> Void
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 22) {
+            
+            // CIRCLE
+            ZStack {
+                Circle()
+                    .fill(
+                        checked
+                        ? Color(red: 0.97, green: 0.95, blue: 0.93)
+                        : Color(red: 0.91, green: 0.73, blue: 0.67)   // solid color for un-checked
+                    )
+                    .frame(width: circleDiameter, height: circleDiameter)
+                
+                if checked {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundColor(Color(red: 0.65, green: 0.22, blue: 0.13))
+                } else {
+                    Text(number)
+                        .font(.custom("Konkhmer Sleokchher", size: 22))
+                        .foregroundColor(.white)
+                }
+            }
+            
+            // TEXT COLUMN
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.custom("Konkhmer Sleokchher", size: 22))
+                    .foregroundColor(Color(red: 0.97, green: 0.95, blue: 0.93))
+                
+                Text(subtitle)
+                    .font(.custom("Konkhmer Sleokchher", size: 12))
+                    .foregroundColor(Color(red: 0.97, green: 0.95, blue: 0.93))
+                
+                if let timerText {
+                    Text(timerText)
+                        .font(.custom("Konkhmer Sleokchher", size: 10))
+                        .foregroundColor(Color(red: 0.91, green: 0.62, blue: 0.27))
+                        .padding(.top, 4)
+                }
+                
+                if showsButton {
+                    Button(action: onOrderNow) {
+                        Text("ORDER NOW")
+                            .font(.custom("Konkhmer Sleokchher", size: 14))
+                            .foregroundColor(.white)
+                            .frame(width: 220, height: 54)
+                            .background(
+                                RoundedRectangle(cornerRadius: 40)
+                                    .fill(Color(red: 0.97, green: 0.95, blue: 0.93).opacity(0.62))
+                            )
+                    }
+                    .padding(.top, 10)
+                }
+            }
+        }
+        .padding(.leading, circleLeading)
+        .padding(.trailing, 40)
+    }
+}
+
+#Preview {
+    HowItWorksView(onOrderNow: {})
+}
