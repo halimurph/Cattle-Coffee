@@ -1,0 +1,516 @@
+import SwiftUI
+
+struct CommunityView: View {
+    // Called when "Learn More" is tapped
+    let onLearnMore: () -> Void
+
+    // MARK: - Colors
+    private let cream = Color(red: 0.969, green: 0.949, blue: 0.929)
+    private let dark  = Color(red: 0.145, green: 0.098, blue: 0.051)
+    private let gold  = Color(red: 0.851, green: 0.537, blue: 0.157)
+
+    // MARK: - Impact Data
+    private let quarterAmount: Double = 18_742
+    private let goalAmount: Double    = 25_000
+    private let activeMembers: Int    = 317
+    private let multipliedAmount: Double = 31_940
+    private let keepPerHundred: Int   = 58
+
+    @State private var donutProgress: CGFloat = 0.0
+    @State private var fillPercent: Double = 0
+    @State private var cupFill: CGFloat = 0.0      // 0 → 1
+    @State private var displayAmount: Double = 0   // animating dollar amount
+    let finalAmount: Double = 2_480
+
+    // MARK: - Leaderboard Model
+    struct LeaderboardEntry: Identifiable {
+        let id = UUID()
+        let rank: Int
+        let name: String
+        let amount: Double
+        let medalEmoji: String?
+        let isYou: Bool
+    }
+
+    private let leaderboard: [LeaderboardEntry] = [
+        .init(rank: 1, name: "Taylor", amount: 342, medalEmoji: "🥇", isYou: false),
+        .init(rank: 2, name: "Jordan", amount: 250, medalEmoji: "🥈", isYou: false),
+        .init(rank: 3, name: "Morgan", amount: 200, medalEmoji: "🥉", isYou: false),
+        .init(rank: 4, name: "YOU",    amount: 159, medalEmoji: nil,  isYou: true),
+        .init(rank: 5, name: "Chris",  amount: 125, medalEmoji: nil,  isYou: false)
+    ]
+
+    // MARK: - Poll Model
+    struct PollOption: Identifiable, Equatable {
+        let id = UUID()
+        let title: String
+        let resultPercent: Double
+    }
+
+    private let pollOptions: [PollOption] = [
+        .init(title: "School Garden Expansion",                 resultPercent: 74),
+        .init(title: "Equipment upgrade for school security",   resultPercent: 50),
+        .init(title: "Community coffeehouse seating upgrade",   resultPercent: 67)
+    ]
+
+    @State private var hasVoted = false
+    @State private var showResults = false
+    @State private var selectedPollID: UUID? = nil
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 48) {
+                impactSection
+                leaderboardSection
+                fundAndVotingSection
+            }
+            .padding(.top, 52)
+            .padding(.horizontal, 32)
+            .padding(.bottom, 40)
+        }
+        .background(cream.ignoresSafeArea())
+        .onAppear {
+            // animate donut once when view appears
+            let target = CGFloat(quarterAmount / goalAmount)
+            withAnimation(.easeOut(duration: 1.0)) {
+                donutProgress = target
+            }
+        }
+    }
+
+    // MARK: - Section 1: Impact
+
+    private var impactSection: some View {
+        VStack(spacing: 50) {
+            VStack(spacing: 35) {
+                Text("COMMUNITY")
+                    .font(.custom("Konkhmer Sleokchher", size: 20))
+                    .foregroundColor(dark)
+
+                Text("LOCAL IMPACT OVERVIEW")
+                    .font(.custom("Konkhmer Sleokchher", size: 10))
+                    .foregroundColor(dark.opacity(0.55))
+                    .kerning(2)
+            }
+
+            // Donut + center label
+            CommunityDonutChart(progress: donutProgress, ringColor: gold)
+                .frame(width: 210, height: 210)
+                .overlay(
+                    VStack(spacing: 2) {
+                        // percentage
+                        let pct = Int((quarterAmount / goalAmount) * 100)
+                        Text("\(pct)%")
+                            .font(.custom("Konkhmer Sleokchher", size: 50))
+                            .foregroundColor(dark)
+
+                        // amount
+                        Text(amountString(quarterAmount))
+                            .font(.custom("Konkhmer Sleokchher", size: 20))
+                            .foregroundColor(dark.opacity(0.8))
+                    }
+                    )
+                    (
+                        Text("\(amountString(quarterAmount))")
+                            .foregroundColor(gold)
+                        +
+                        Text(" reinvested locally this quarter.")
+                            .foregroundColor(dark)
+                    )
+                    .font(.custom("Konkhmer Sleokchher", size: 20))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(10)
+
+
+            VStack(spacing: 30) {
+                Text("GOAL: \(amountString(goalAmount))")
+                    .font(.custom("Konkhmer Sleokchher", size: 20))
+                    .foregroundColor(gold)
+
+                (
+                    Text("Active Members: ")
+                        .foregroundColor(dark)
+                    +
+                    Text("\(activeMembers) verified locals")
+                        .foregroundColor(gold)
+                )
+                .font(.custom("Konkhmer Sleokchher", size: 20))
+                .multilineTextAlignment(.center)
+
+
+                (
+                    Text("Every ")
+                        .foregroundColor(dark)
+                    +
+                    Text("$100")
+                        .foregroundColor(gold)
+                    +
+                    Text(" spent here keeps ")
+                        .foregroundColor(dark)
+                    +
+                    Text("$\(keepPerHundred)")
+                        .foregroundColor(gold)
+                    +
+                    Text(" circulating in Overton.")
+                        .foregroundColor(dark)
+                )
+                .font(.custom("Konkhmer Sleokchher", size: 20))
+                .multilineTextAlignment(.center)
+
+
+                (
+                    Text("Together, we’ve multiplied ")
+                        .foregroundColor(dark)
+                    +
+                    Text(amountString(quarterAmount))
+                        .foregroundColor(gold)
+                    +
+                    Text(" into ")
+                        .foregroundColor(dark)
+                    +
+                    Text(amountString(multipliedAmount))
+                        .foregroundColor(gold)
+                    +
+                    Text(" in local economic activity.")
+                        .foregroundColor(dark)
+                )
+                .font(.custom("Konkhmer Sleokchher", size: 20))
+                .multilineTextAlignment(.center)
+                .lineSpacing(10)
+            }
+            .lineSpacing(10)
+
+            Button(action: onLearnMore) {
+                Text("Learn More")
+                    .font(.custom("Konkhmer Sleokchher", size: 20))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 40)
+                            .fill(gold)
+                    )
+            }
+            .padding(.top, 10)
+            .padding(.bottom, 5)
+        }
+    }
+
+    // MARK: - Section 2: Leaderboard
+
+    private var leaderboardSection: some View {
+        VStack(spacing: 18) {
+            Text("LEADER BOARD")
+                .font(.custom("Konkhmer Sleokchher", size: 11))
+                .kerning(2)
+                .foregroundColor(dark.opacity(0.7))
+                .padding(.top, 8)
+
+            VStack(spacing: 0) {
+                // Header row
+                HStack {
+                    Text("PLACE")
+                        .frame(width: 46, alignment: .leading)
+                    Text("NAME")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    Text("SPENT")
+                        .frame(width: 70, alignment: .trailing)
+                }
+                .font(.custom("Konkhmer Sleokchher", size: 9))
+                .foregroundColor(dark.opacity(0.6))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+
+                Divider().background(dark.opacity(0.2))
+
+                ForEach(leaderboard) { entry in
+                    HStack(spacing: 8) {
+                        // Rank / medal
+                        if let medal = entry.medalEmoji {
+                            Text(medal)
+                                .frame(width: 30, alignment: .leading)
+                            Text("") // keep layout
+                                .frame(width: 16)
+                        } else {
+                            Text("\(entry.rank)")
+                                .frame(width: 46, alignment: .leading)
+                        }
+
+                        // Name (center column)
+                        Text(entry.name)
+                            .font(.custom("Konkhmer Sleokchher", size: 11))
+                            .fontWeight(entry.isYou ? .bold : .regular)
+                            .frame(maxWidth: .infinity, alignment: .center)
+
+                        // Amount
+                        Text(amountString(entry.amount))
+                            .font(.custom("Konkhmer Sleokchher", size: 11))
+                            .frame(width: 70, alignment: .trailing)
+                    }
+                    .foregroundColor(dark)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+
+                    if entry.rank != leaderboard.last?.rank {
+                        Divider().background(dark.opacity(0.15))
+                    }
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(cream)
+                    .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 3)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(dark.opacity(0.12), lineWidth: 1)
+            )
+        }
+    }
+
+    // MARK: - Section 3: Fund & Voting
+
+    // MARK: - Section 3: Fund & Voting
+    private var fundAndVotingSection: some View {
+        VStack(spacing: 26) {
+            Text("COMMUNITY FUND & VOTING")
+                .font(.custom("Konkhmer Sleokchher", size: 11))
+                .foregroundColor(dark.opacity(0.7))
+                .kerning(2)
+                .padding(.top, 8)
+
+            // MARK: - Pure SwiftUI animated cup
+            ZStack {
+                // GOLD LIQUID (fills from bottom)
+                GeometryReader { geo in
+                    let height = geo.size.height
+                    let fillHeight = height * cupFill
+
+                    Rectangle()
+                        .fill(gold)
+                        .frame(height: fillHeight)
+                        .position(
+                            x: geo.size.width / 2,
+                            y: height - (fillHeight / 2)
+                        )
+                        .animation(.easeOut(duration: 2.0), value: cupFill)
+                }
+                // Mask inside the *solid black* silhouette
+                .mask(
+                    Image("coffeeCupSilhouetteMask.png")
+                        .resizable()
+                        .scaledToFit()
+                        .offset(x:0, y: 10)
+                )
+
+                // CUP OUTLINE on top
+                Image("coffeeCupSilhouette.png")
+                    .resizable()
+                    .scaledToFit()
+
+                // RISING + COUNTING NUMBER UNDER LIQUID LINE
+                GeometryReader { geo in
+                    let height = geo.size.height
+                    let fillHeight = height * cupFill
+
+                    // Y follows the bottom of the liquid,
+                    // never dropping below the cup body
+                    let yPos = max(height - fillHeight + 16, 22)
+
+                    Text(amountString(displayAmount))
+                        .font(.custom("Konkhmer Sleokchher", size: 18))
+                        .foregroundColor(.white)
+                        .position(
+                            x: geo.size.width / 2,
+                            y: height - (height * cupFill) + 18
+                        )
+                        .animation(.easeOut(duration: 2.0), value: cupFill)
+                }
+
+                // VISIBILITY DETECTION (unchanged)
+                GeometryReader { geo in
+                    let globalFrame = geo.frame(in: .global)
+                    let screenHeight = UIScreen.main.bounds.height
+                    let fullyVisible = globalFrame.minY >= 0 &&
+                                       globalFrame.maxY <= screenHeight
+
+                    Color.clear
+                        .preference(key: ViewVisibleKey.self, value: fullyVisible)
+                }
+            }
+            .frame(width: 230, height: 210)
+            .onPreferenceChange(ViewVisibleKey.self) { isVisible in
+                if isVisible {
+                    startCupAnimation()   // only runs when visible
+                }
+            }
+
+
+            // MARK: - Text + poll
+            VStack(spacing: 30) {
+                (
+                    Text("Current Fund Balance: ")
+                        .foregroundColor(dark)
+                    +
+                    Text(amountString(2_480))
+                        .foregroundColor(gold)
+                    +
+                    Text(" available for local projects")
+                        .foregroundColor(dark)
+                )
+                .font(.custom("Konkhmer Sleokchher", size: 20))
+                .multilineTextAlignment(.center)
+                .lineSpacing(10)
+
+                Text("Active Projects to Vote On:")
+                    .font(.custom("Konkhmer Sleokchher", size: 20))
+                    .foregroundColor(dark.opacity(0.8))
+            }
+
+            // Options -> Results
+            // Options -> Results
+            // Options -> Results
+            VStack(spacing: 10) {
+                ForEach(pollOptions) { option in
+                    Button {
+                        guard !hasVoted else { return }     // ignore taps after first vote
+                        selectedPollID = option.id
+                        hasVoted = true
+                        withAnimation(.easeOut(duration: 0.7)) {
+                            showResults = true
+                        }
+                    } label: {
+                        pollOptionRow(option: option)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Text("Q4 Voting ends Nov 30")
+                .font(.custom("Konkhmer Sleokchher", size: 9))
+                .foregroundColor(dark.opacity(0.55))
+                .padding(.top, -10)
+        }
+        // start the cup + number when this section appears
+        .onAppear {
+            startCupAnimationIfNeeded()
+        }
+    }
+    struct ViewVisibleKey: PreferenceKey {
+        static var defaultValue: Bool = false
+        static func reduce(value: inout Bool, nextValue: () -> Bool) {
+            value = nextValue()
+        }
+    }
+    private func startCupAnimation() {
+        // reset first
+        cupFill = 0
+        displayAmount = 0
+
+        // delay a frame so animation starts when fully visible
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            withAnimation(.easeOut(duration: 2.0)) {
+                cupFill = 0.74   // target fill
+            }
+            animateAmount()
+        }
+    }
+
+
+
+    private func startCupAnimationIfNeeded() {
+        // avoid restarting if user scrolls away & back
+        guard cupFill == 0 else { return }
+
+        withAnimation(.easeOut(duration: 1.6)) {
+            cupFill = 0.74   // or whatever % you want
+        }
+        animateAmount()
+    }
+
+    private func animateAmount() {
+        let steps = 170.0
+        let increment = finalAmount / steps
+
+        Timer.scheduledTimer(withTimeInterval: 1.6 / steps, repeats: true) { timer in
+            displayAmount += increment
+            if displayAmount >= finalAmount {
+                displayAmount = finalAmount
+                timer.invalidate()
+            }
+        }
+    }
+
+    // MARK: - Poll result row
+
+    private func pollOptionRow(option: PollOption) -> some View {
+        GeometryReader { geo in
+            let fullWidth = geo.size.width
+            let fillWidth = hasVoted && showResults
+                ? fullWidth * CGFloat(option.resultPercent / 100.0)
+                : 0
+
+            ZStack(alignment: .leading) {
+                // Base gray block (always visible)
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(dark.opacity(0.04))
+
+                // Gold fill that grows from the left *after* voting
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(option.resultPercent == pollOptions.map({ $0.resultPercent }).max()
+                          ? gold
+                          : gold.opacity(0.35)
+)
+                    .frame(width: fillWidth)
+                    .animation(.easeOut(duration: 0.7), value: showResults)
+            }
+            // Centered label on top of everything
+            .overlay(
+                Text(option.title)
+                    .font(.custom("Konkhmer Sleokchher", size: 11))
+                    .foregroundColor(dark)
+                    .frame(maxWidth: .infinity)
+            )
+        }
+        .frame(height: 44)
+    }
+
+    // MARK: - Helpers
+
+    private func amountString(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.maximumFractionDigits = 0
+        formatter.locale = Locale(identifier: "en_US")
+        return formatter.string(from: NSNumber(value: value)) ?? "$\(Int(value))"
+    }
+}
+
+// Simple donut chart dedicated to this screen
+private struct CommunityDonutChart: View {
+    var progress: CGFloat
+    var ringColor: Color
+
+    private let backgroundColor = Color(red: 0.945, green: 0.929, blue: 0.91)
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(backgroundColor, lineWidth: 26)
+
+            Circle()
+                .trim(from: 0, to: max(min(progress, 1), 0))
+                .stroke(
+                    ringColor,
+                    style: StrokeStyle(lineWidth: 26, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+        }
+    }
+}
+
+// MARK: - Preview
+
+#Preview {
+    CommunityView(onLearnMore: {})
+}
