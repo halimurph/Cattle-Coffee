@@ -1,0 +1,22 @@
+// CoffeeModel.swift
+import SwiftUI
+
+struct CoffeeModel: Identifiable, Hashable {
+    let id = UUID()
+    let name: String
+    let imageName: String
+    let calories: Int
+    let basePrice: Double
+    var finalPrice: Double   // after add-ons
+    var ounces: Int
+    
+    var honeyScoops: Int = 0
+    var milkCups: Int = 0
+    var creamShots: Int = 0
+    var espressoShots: Int = 0
+    
+    var minHoneyScoops: Int = 0
+    var minMilkCups: Int = 0
+    var minCreamShots: Int = 0
+    var minEspressoShots: Int = 0
+}
