@@ -1,0 +1,96 @@
+// CoffeeMenuView.swift
+import SwiftUI
+
+struct CoffeeMenuView: View {
+    let onCoffeeTap: (CoffeeModel) -> Void
+    
+    // Sample coffee data
+    private let coffees: [CoffeeModel] = [
+        CoffeeModel(name: "Espresso", imageName: "coffee1", calories: 120, basePrice: 3.50, finalPrice: 4.50, ounces: 12),
+        CoffeeModel(name: "Americano",  imageName: "coffee2", calories: 5, basePrice: 4.00, finalPrice: 4.50, ounces: 12),
+        CoffeeModel(name: "Macchiato",      imageName: "coffee3", calories: 180, basePrice: 4.00, finalPrice: 4.50, ounces: 12),
+        CoffeeModel(name: "Cortado",   imageName: "coffee4", calories: 3, basePrice: 4.00, finalPrice: 4.50, ounces: 12),
+        CoffeeModel(name: "Cappuccino",      imageName: "coffee5", calories: 220, basePrice: 5.00, finalPrice: 4.50, ounces: 12),
+        CoffeeModel(name: "Cafe Latte",  imageName: "coffee6", calories: 90, basePrice: 6.00, finalPrice: 4.50, ounces: 16),
+        CoffeeModel(name: "Drip",  imageName: "coffee7", calories: 15, basePrice: 3.50, finalPrice: 4.50, ounces: 16),
+        CoffeeModel(name: "Cafe Au Lait", imageName: "coffee8", calories: 160, basePrice: 4.25, finalPrice: 4.50, ounces: 16),
+        CoffeeModel(name: "Cold Brew", imageName: "coffee9", calories: 110, basePrice: 4.75, finalPrice: 4.50, ounces: 16),
+        CoffeeModel(name: "Chai Latte", imageName: "coffee10", calories: 170, basePrice: 6.00, finalPrice: 4.50, ounces: 16),
+        CoffeeModel(name: "Cold Brew Espresso", imageName: "coffee11", calories: 210, basePrice: 6.00, finalPrice: 4.50, ounces: 16),
+        CoffeeModel(name: "Cold Brew Mocha", imageName: "coffee12", calories: 195, basePrice: 5.50, finalPrice: 4.50, ounces: 16),
+        CoffeeModel(name: "Freddo Espresso", imageName: "coffee13", calories: 170, basePrice: 4.00, finalPrice: 4.50, ounces: 16),
+        CoffeeModel(name: "Freddo Cappuccino", imageName: "coffee14", calories: 210, basePrice: 5.00, finalPrice: 4.50, ounces: 16),
+        CoffeeModel(name: "Greek Frappe", imageName: "coffee15", calories: 195, basePrice: 4.25, finalPrice: 4.50, ounces: 16)
+    ]
+    
+    var body: some View {
+        ZStack {
+            // Background color layer
+            Color(red: 0.906, green: 0.843, blue: 0.784)
+                .opacity(0.33)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // MARK: - Header
+                VStack(spacing: 6) {
+                    Text("CATTLE & COFFEE")
+                        .font(.custom("Konkhmer Sleokchher", size: 26))
+                        .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                    
+                    Text("SKIP THE RUSH")
+                        .font(.custom("Konkhmer Sleokchher", size: 13))
+                        .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                        .tracking(1)
+                }
+                .padding(.top, 80)   // under Dynamic Island
+                .padding(.bottom, 25)
+                
+                // MARK: - Coffee Grid
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: 15),
+                        GridItem(.flexible(), spacing: 15),
+                        GridItem(.flexible(), spacing: 15)
+                        
+                    ],
+                    spacing: 20
+                ) {
+                    ForEach(coffees) { coffee in
+                        Button {
+                            onCoffeeTap(coffee)
+                        } label: {
+                            CoffeeItem(coffee: coffee)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 60)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
+    }
+}
+
+struct CoffeeItem: View {
+    let coffee: CoffeeModel
+
+    var body: some View {
+        VStack(spacing: 8) {
+
+            Image(coffee.imageName)
+                .resizable()
+                .scaledToFit()
+                .frame(height: 100)   // no dark square
+
+            Text(coffee.name.uppercased())
+                .font(.custom("Konkhmer Sleokchher", size: 10))
+                .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                .lineLimit(1)
+        }
+    }
+}
+
+
+#Preview {
+    CoffeeMenuView { _ in }
+}
