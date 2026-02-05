@@ -1,0 +1,389 @@
+// RecipeDetailView.swift
+import SwiftUI
+
+struct CoffeeDetailView: View {
+    let coffee: CoffeeModel
+    var isEditing: Bool {
+        cart.items.contains(where: { $0.id == coffee.id }) ||
+        subscriptionManager.items.contains(where: { $0.id == coffee.id })
+    }
+    let closeAction: () -> Void
+    
+    let coffeeImageName: String
+    let coffeeName: String
+    let caloriesText: String
+    
+    @State private var totalPrice: Double
+    @State private var honeyCount: Int
+    @State private var milkCount: Int
+    @State private var creamCount: Int
+    @State private var espressoCount: Int
+    @State private var minHoneyScoops: Int
+    @State private var minMilkCups: Int
+    @State private var minCreamShots: Int
+    @State private var minEspressoShots: Int
+    
+    @State private var showInfo = true
+    @State private var cartCount = 0
+    @Binding var selectedTab: Int
+    @Binding var selectedOrderType: String
+    
+    @EnvironmentObject var cart: CartManager
+    @EnvironmentObject var subscriptionManager: SubscriptionManager
+    
+    init(
+        coffee: CoffeeModel,
+        coffeeImageName: String,
+        coffeeName: String,
+        caloriesText: String,
+        selectedTab: Binding<Int>,
+        selectedOrderType: Binding<String>,
+        closeAction: @escaping () -> Void
+    ) {
+        self.coffee = coffee
+        self.coffeeImageName = coffeeImageName
+        self.coffeeName = coffeeName
+        self.caloriesText = caloriesText
+        self.closeAction = closeAction
+        
+        _selectedTab = selectedTab
+        _selectedOrderType = selectedOrderType
+        
+        _totalPrice = State(initialValue: coffee.finalPrice)
+        _honeyCount = State(initialValue: coffee.honeyScoops)
+        _milkCount = State(initialValue: coffee.milkCups)
+        _creamCount = State(initialValue: coffee.creamShots)
+        _espressoCount = State(initialValue: coffee.espressoShots)
+        _minHoneyScoops = State(initialValue: coffee.minHoneyScoops)
+        _minMilkCups = State(initialValue: coffee.minMilkCups)
+        _minCreamShots = State(initialValue: coffee.minCreamShots)
+        _minEspressoShots = State(initialValue: coffee.minEspressoShots)
+    }
+    
+    var body: some View {
+        ZStack(alignment: .top) {
+            
+            Color(red: 0.969, green: 0.941, blue: 0.925)
+                .ignoresSafeArea()
+            
+            // MAIN SCROLL
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 28) {
+                    
+                    // Coffee image toggle
+                    Image(coffeeImageName)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 220, height: 190)
+                        .shadow(radius: 8)
+                        .padding(.top, 70)
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.55,
+                                                  dampingFraction: 0.82)) {
+                                showInfo.toggle()
+                            }
+                        }
+                    
+                    // ——— When info is visible ———
+                    if showInfo {
+                        // Name + calories
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(coffeeName)
+                                .font(.custom("Konkhmer Sleokchher", size: 16))
+                                .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                            
+                            Text(caloriesText)
+                                .font(.custom("Konkhmer Sleokchher", size: 13))
+                                .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 28)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        
+                        // Divider
+                        Rectangle()
+                            .fill(Color(red: 0.75, green: 0.70, blue: 0.65))
+                            .frame(height: 1)
+                            .padding(.horizontal, 28)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                        
+                        // Ingredient cards
+                        VStack(spacing: 18) {
+                            IngredientCard(
+                                imageName: "honey",
+                                amountLabel: "1 TBSP",
+                                title: "PURE RAW HONEY",
+                                count: $honeyCount,
+                                minCount: minHoneyScoops,
+                                pricePerUnit: 0.50,
+                                onPriceChange: { delta in totalPrice += delta }
+                            )
+                            
+                            IngredientCard(
+                                imageName: "milk",
+                                amountLabel: "1 CUP",
+                                title: "WHOLE MILK",
+                                count: $milkCount,
+                                minCount: minMilkCups,
+                                pricePerUnit: 0.50,
+                                onPriceChange: { delta in totalPrice += delta }
+                            )
+                            
+                            IngredientCard(
+                                imageName: "cream",
+                                amountLabel: "1 SHOT",
+                                title: "HEAVY CREAM",
+                                count: $creamCount,
+                                minCount: minCreamShots,
+                                pricePerUnit: 0.50,
+                                onPriceChange: { delta in totalPrice += delta }
+                            )
+                            
+                            IngredientCard(
+                                imageName: "espresso",
+                                amountLabel: "1 SHOT",
+                                title: "ESPRESSO",
+                                count: $espressoCount,
+                                minCount: minEspressoShots,
+                                pricePerUnit: 0.50,
+                                onPriceChange: { delta in totalPrice += delta }
+                            )
+                        }
+                        .padding(.horizontal, 20)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        
+                    } else {
+                        // ——— When info is hidden (sliding ingredient images) ———
+                        VStack(spacing: 14) {
+                            SlidingIngredientImage(image: "honey",    label: "1 TBSP HONEY")
+                            SlidingIngredientImage(image: "milk",     label: "STEAMED MILK TO TOP")
+                            SlidingIngredientImage(image: "espresso", label: "2 ESPRESSO SHOTS")
+                            SlidingIngredientImage(image: "cup",      label: "16OZ CUP")
+                        }
+                        .padding(.top, 10)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                    
+                    Spacer().frame(height: 140)
+                }
+            }
+            
+            // Close button
+            HStack {
+                Spacer()
+                Button {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                        closeAction()
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                        .padding(.trailing, 24)
+                        .padding(.top, 22)
+                }
+            }
+            
+            // Fixed price button + mini cart pill
+            VStack {
+                Spacer()
+                
+                if isEditing {
+                    // 🧾 When opened from Checkout (editing):
+                    // simple centered button near the bottom
+                    addOrUpdateButton
+                        .padding(.trailing, -145)
+                        .padding(.bottom, 20)
+                        .padding(.horizontal, 40)
+                    
+                } else {
+                    // ☕ When opened from Home (menu):
+                    // keep your original funky placement + pill behavior
+                    addOrUpdateButton
+                        .padding(.trailing, -145)
+                        .padding(.bottom, 155)
+                        .offset(y: cartCount > 0 ? 150 : 0)
+                        .animation(.spring(response: 0.45, dampingFraction: 0.85),
+                                   value: cartCount)
+                    
+                    if cartCount > 0 {
+                        HStack {
+                            Spacer()
+                            Button {
+                                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                    selectedTab = 1      // go to checkout
+                                    closeAction()        // close detail sheet
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image("coffee_beans")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 26, height: 26)
+                                    
+                                    Text("\(cartCount)")
+                                        .font(.custom("Konkhmer Sleokchher", size: 12))
+                                        .foregroundColor(.white)
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 24)
+                                        .fill(Color(red: 0.851, green: 0.537, blue: 0.157))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 24)
+                                        .stroke(Color(red: 0.91, green: 0.62, blue: 0.27), lineWidth: 1)
+                                )
+                                .shadow(radius: 6)
+                            }
+                            .padding(.trailing, 24)
+                            .padding(.bottom, 150)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+                    }
+                }
+            }
+            .ignoresSafeArea(edges: .bottom)
+        }
+        .overlay(
+            Rectangle()
+                .fill(Color.black.opacity(0.18))
+                .frame(height: 18)
+                .blur(radius: 12),
+            alignment: .top
+        )
+    }
+    
+    // MARK: - Button logic extracted
+    
+    private var addOrUpdateButton: some View {
+        Button {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                
+                // 1️⃣ Editing ONE-TIME item (cart)
+                if let idx = cart.items.firstIndex(where: { $0.id == coffee.id }) {
+                    cart.items[idx].finalPrice       = totalPrice
+                    cart.items[idx].honeyScoops      = honeyCount
+                    cart.items[idx].milkCups         = milkCount
+                    cart.items[idx].creamShots       = creamCount
+                    cart.items[idx].espressoShots    = espressoCount
+                    cart.items[idx].minHoneyScoops   = minHoneyScoops
+                    cart.items[idx].minMilkCups      = minMilkCups
+                    cart.items[idx].minCreamShots    = minCreamShots
+                    cart.items[idx].minEspressoShots = minEspressoShots
+                    
+                    closeAction()
+                    return
+                }
+                
+                // 2️⃣ Editing SUBSCRIPTION item
+                if let idx = subscriptionManager.items.firstIndex(where: { $0.id == coffee.id }) {
+                    subscriptionManager.items[idx].finalPrice       = totalPrice
+                    subscriptionManager.items[idx].honeyScoops      = honeyCount
+                    subscriptionManager.items[idx].milkCups         = milkCount
+                    subscriptionManager.items[idx].creamShots       = creamCount
+                    subscriptionManager.items[idx].espressoShots    = espressoCount
+                    subscriptionManager.items[idx].minHoneyScoops   = minHoneyScoops
+                    subscriptionManager.items[idx].minMilkCups      = minMilkCups
+                    subscriptionManager.items[idx].minCreamShots    = minCreamShots
+                    subscriptionManager.items[idx].minEspressoShots = minEspressoShots
+                    
+                    closeAction()
+                    return
+                }
+                
+                // 3️⃣ New item — route based on order type
+                let newModel = CoffeeModel(
+                    name: coffee.name,
+                    imageName: coffee.imageName,
+                    calories: coffee.calories,
+                    basePrice: coffee.basePrice,
+                    finalPrice: totalPrice,
+                    ounces: coffee.ounces,
+                    honeyScoops: honeyCount,
+                    milkCups: milkCount,
+                    creamShots: creamCount,
+                    espressoShots: espressoCount,
+                    minHoneyScoops: minHoneyScoops,
+                    minMilkCups: minMilkCups,
+                    minCreamShots: minCreamShots,
+                    minEspressoShots: minEspressoShots
+                )
+                
+                if selectedOrderType == "Subscription" {
+                    subscriptionManager.items.append(newModel)
+
+                    // 🔥 ensure subscription section shows the drink list
+                    NotificationCenter.default.post(name: .subscriptionDrinkAdded, object: nil)
+
+                    closeAction()
+
+                    // 🔥 jump back to checkout screen
+                    selectedTab = 1
+                    return
+                } else {
+                    // ✅ Normal one-time cart
+                    cart.items.append(newModel)
+                    cartCount += 1
+                }
+            }
+        } label: {
+            Text(String(format: "ADD TO ORDER $%.2f", totalPrice))
+                .font(.custom("Konkhmer Sleokchher", size: 14))
+                .foregroundColor(.white)
+                .padding(.horizontal, 34)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 40)
+                        .fill(Color(red: 0.851, green: 0.537, blue: 0.157))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 40)
+                        .stroke(Color(red: 0.91, green: 0.62, blue: 0.27), lineWidth: 1)
+                )
+                .shadow(radius: 8)
+        }
+    }
+}
+// Sliding ingredient image view
+private struct SlidingIngredientImage: View {
+    let image: String
+    let label: String
+
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Image(image)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 200, height: 150)
+
+            Text(label)
+                .font(.custom("Konkhmer Sleokchher", size: 9))
+                .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                .padding(.trailing, 4)
+                .padding(.bottom, 6)
+        }
+    }
+}
+
+#Preview {
+    CoffeeDetailView(
+        coffee: CoffeeModel(
+            name: "Latte",
+            imageName: "coffee1",
+            calories: 180,
+            basePrice: 4.50,
+            finalPrice: 4.50,
+            ounces: 16
+        ),
+        coffeeImageName: "coffee1",
+        coffeeName: "Latte",
+        caloriesText: "180 cal",
+        selectedTab: .constant(0),
+        selectedOrderType: .constant("One-time"),
+        closeAction: {}
+    )
+    .environmentObject(CartManager())
+    .environmentObject(SubscriptionManager())
+}
