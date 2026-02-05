@@ -1,0 +1,113 @@
+import SwiftUI
+
+struct SignInView: View {
+    let onAuthenticated: () -> Void   // called when login / signup finishes
+
+    @EnvironmentObject var userSession: UserSession
+
+    @State private var showSignUp = false
+    @State private var showSignInPopup = false
+
+    private let cream = Color(red: 0.969, green: 0.949, blue: 0.929)
+    private let gold  = Color(red: 0.851, green: 0.537, blue: 0.157)
+    private let goldStroke = Color(hex: "#D98825")
+
+    var body: some View {
+        ZStack {
+            cream.ignoresSafeArea()
+
+            VStack {
+                Spacer()
+
+                Button {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                        showSignInPopup = false
+                        showSignUp = true
+                    }
+                } label: {
+                    Text("Join Now")
+                        .font(.custom("Konkhmer Sleokchher", size: 14))
+                        .foregroundColor(.white)
+                        .frame(width: 180, height: 50)
+                        .background(
+                            RoundedRectangle(cornerRadius: 40)
+                                .fill(gold)
+                        )
+                }
+                .padding(.bottom, 14)
+
+                Button {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                        showSignUp = false
+                        showSignInPopup = true
+                    }
+                } label: {
+                    Text("Sign In")
+                        .font(.custom("Konkhmer Sleokchher", size: 14))
+                        .foregroundColor(goldStroke)
+                        .frame(width: 180, height: 50)
+                        .background(
+                            RoundedRectangle(cornerRadius: 40)
+                                .fill(cream)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 40)
+                                .stroke(goldStroke, lineWidth: 1.5)
+                        )
+                }
+
+                Spacer()
+            }
+
+            // SIGN UP POPUP
+            .sheet(isPresented: $showSignUp) {
+                SignUpPopupView(
+                    closeAction: { showSignUp = false },
+                    onAuthenticated: {
+                        onAuthenticated()
+                        showSignUp = false
+                        showSignInPopup = false
+                    }
+                )
+                .environmentObject(userSession)
+            }
+
+            // SIGN IN POPUP (if you have one)
+                .sheet(isPresented: $showSignInPopup) {
+                    SignInPopupView(
+                        closeAction: { showSignInPopup = false },
+                        onAuthenticated: {
+                            onAuthenticated()
+                            showSignInPopup = false
+                            showSignUp = false
+                        }
+                    )
+                    .environmentObject(userSession)
+                }
+
+        }
+    }
+}
+
+// shared overlay + popup frame
+private func overlayDimmer(_ close: @escaping () -> Void) -> some View {
+    Color.black.opacity(0.45)
+        .ignoresSafeArea()
+        .allowsHitTesting(!UIApplication.shared.isKeyboardShown)
+        .onTapGesture {
+            if !UIApplication.shared.isKeyboardShown {
+                close()
+            }
+        }
+}
+
+private extension View {
+    func popupFrame() -> some View {
+        self
+            .background(Color(red: 0.969, green: 0.949, blue: 0.929))
+            .cornerRadius(26)
+            .shadow(radius: 25)
+            .offset(y: 120)
+    }
+}
+
