@@ -1,0 +1,69 @@
+import SwiftUI
+
+struct NutritionalHighlightsView: View {
+    var highlights = [
+        "SUSTAINABLY SOURCED",
+        "XX VITAMINS & MINERALS",
+        "NO ARTIFICIAL FLAVORS",
+        "NATURAL ENERGY DRINK",
+        "NATURALLY SWEETENED",
+        "NO SEED OILS",
+        "NON GMO",
+        "HIGH PROTEIN",
+        "HEALTHY FATS"
+    ]
+    
+    var body: some View {
+        ZStack {
+            Color(red: 0.85, green: 0.54, blue: 0.16)
+                .ignoresSafeArea()
+            
+            VStack(alignment: .leading, spacing: 0) {
+                // Title
+                Text("NUTRITIONAL HIGHLIGHTS")
+                    .font(.custom("Konkhmer Sleokchher", size: 35))
+                    .foregroundColor(Color(red: 0.15, green: 0.1, blue: 0.05))
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 110)       // ⬅️ more space ABOVE
+                    .padding(.bottom, 20)
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        ForEach(highlights, id: \.self) { text in
+                            highlightRow(text: text)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 140)    // ⬅️ more space BELOW
+                }
+            }
+        }
+    }
+    
+    private func highlightRow(text: String) -> some View {
+        HStack(alignment: .center, spacing: 12) {   // was 15
+            DoneCheckmark()
+            Text(text)
+                .font(.custom("Konkhmer Sleokchher", size: 24))
+                .foregroundColor(Color(red: 0.15, green: 0.1, blue: 0.05))
+                .padding(.vertical, 6)              // was 10
+        }
+        .padding(.vertical, 4)                       // was 8
+
+    }
+}
+
+struct DoneCheckmark: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 20))
+                .foregroundColor(Color(red: 0.15, green: 0.1, blue: 0.05))
+        }
+        .frame(width: 38, height: 38)
+    }
+}
+
+#Preview {
+    NutritionalHighlightsView()
+}
