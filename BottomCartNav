@@ -1,0 +1,98 @@
+import SwiftUI
+
+struct BottomNavBar: View {
+    @Binding var selectedTab: Int
+    private let darkColor = Color(red: 0.145, green: 0.098, blue: 0.051)
+    private let selectedColor = Color(red: 0.145, green: 0.098, blue: 0.051).opacity(0.5)
+    
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 40)
+                .fill(Color(red: 0.969, green: 0.941, blue: 0.925))
+                .frame(height: 54)
+                .opacity(0.65)
+                .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
+            
+            HStack {
+                TabBarItem(image: "house", isSelected: selectedTab == 0,
+                           darkColor: darkColor, selectedColor: selectedColor) {
+                    selectedTab = 0
+                }
+                
+                Spacer()
+                
+                BeanTabItem(isSelected: selectedTab == 1,
+                            darkColor: darkColor,
+                            selectedColor: selectedColor) {
+                    selectedTab = 1
+                }
+                
+                Spacer()
+                
+                TabBarItem(image: "person", isSelected: selectedTab == 2,
+                           darkColor: darkColor, selectedColor: selectedColor) {
+                    selectedTab = 2
+                }
+                
+                Spacer()
+                
+                TabBarItem(image: "person.2", isSelected: selectedTab == 3,
+                           darkColor: darkColor, selectedColor: selectedColor) {
+                    selectedTab = 3
+                }
+            }
+            .padding(.horizontal, 30)
+        }
+        .frame(height: 54)
+        .padding(.horizontal)
+    }
+}
+
+
+struct TabBarItem: View {
+    let image: String
+    let isSelected: Bool
+    let darkColor: Color
+    let selectedColor: Color
+    let action: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            Image(systemName: image)
+                .font(.system(size: 24))
+                .foregroundColor(isSelected ? selectedColor : darkColor)
+        }
+        .frame(width: 50, height: 39)
+        .onTapGesture(perform: action)
+    }
+}
+struct BeanTabItem: View {
+    let isSelected: Bool
+    let darkColor: Color
+    let selectedColor: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Image("coffee_beans")
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 50, height: 39)   // ⬅️ bumped up to match SF Symbol footprint
+                .foregroundColor(isSelected ? selectedColor : darkColor)
+        }
+        .frame(width: 50, height: 39)
+    }
+}
+
+#Preview {
+    @State var previewTab = 0   // <-- create state value for preview
+    ZStack {
+        Color.white.ignoresSafeArea()
+        VStack {
+            Spacer()
+            BottomNavBar(selectedTab: $previewTab)   // <-- now valid binding
+                .padding(.bottom, -5)
+        }
+    }
+}
