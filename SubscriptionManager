@@ -1,0 +1,11 @@
+import Foundation
+import Combine
+import SwiftUI
+
+class SubscriptionManager: ObservableObject {
+    @Published var items: [CoffeeModel] = []
+
+    func clear() {
+        items.removeAll()
+    }
+}
