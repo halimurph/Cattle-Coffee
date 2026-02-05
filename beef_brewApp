@@ -1,0 +1,25 @@
+//
+//  beef_brewApp.swift
+//  beef+brew
+//
+//  Created by Hali Murphy on 10/11/25.
+//
+
+import SwiftUI
+
+@main
+struct beef_brewApp: App {
+    @StateObject var userSession = UserSession()
+    @StateObject var cartManager = CartManager()
+    @StateObject var subscriptionManager = SubscriptionManager()
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .environmentObject(userSession)
+                .environmentObject(cartManager)
+                .environmentObject(subscriptionManager)
+        }
+    }
+}
+
