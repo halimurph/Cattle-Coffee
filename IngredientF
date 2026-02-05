@@ -1,0 +1,118 @@
+import SwiftUI
+
+struct IngredientCard: View {
+    let imageName: String
+    let amountLabel: String
+    let title: String
+
+    @Binding var count: Int
+    let minCount: Int
+    let pricePerUnit: Double
+    let onPriceChange: (Double) -> Void
+
+    /// When count > minCount, card highlights
+    private var isExtra: Bool { count > minCount }
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 18)
+                .fill(isExtra ? Color(red: 0.851, green: 0.537, blue: 0.157).opacity(0.18)
+                              : Color(red: 0.969, green: 0.949, blue: 0.929))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18)
+                        .stroke(isExtra ? Color(red: 0.851, green: 0.537, blue: 0.157).opacity(0.65) : .clear,
+                                lineWidth: 1.4)
+                )
+                .shadow(color: Color.black.opacity(0.18), radius: 6, x: 0, y: 5)
+                .frame(height: 158)
+
+            VStack(spacing: 10) {
+                Image(imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 70)
+
+                Text(amountLabel)
+                    .font(.custom("Konkhmer Sleokchher", size: 10))
+                    .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+
+                Text(title)
+                    .font(.custom("Konkhmer Sleokchher", size: 14))
+                    .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+            }
+
+            // Controls
+            HStack {
+                // MINUS — muted & disabled until extras exist
+                Button {
+                    if count > minCount {
+                        count -= 1
+                        onPriceChange(-pricePerUnit)
+                    }
+                } label: {
+                    CircleButton(isPlus: false)
+                        .opacity(count > minCount ? 1 : 0.28)
+                }
+                .disabled(!(count > minCount))
+
+                Spacer()
+
+                // PLUS — always active
+                Button {
+                    count += 1
+                    onPriceChange(pricePerUnit)
+                } label: {
+                    CircleButton(isPlus: true)
+                }
+            }
+            .padding(.horizontal, 30)
+        }
+    }
+}
+
+// Reusable circle button
+private struct CircleButton: View {
+    let isPlus: Bool
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color(red: 0.15, green: 0.10, blue: 0.05))
+                .frame(width: 46, height: 46)
+
+            if isPlus {
+                VStack(spacing: 0) {
+                    Rectangle()
+                        .fill(.white)
+                        .frame(width: 24, height: 3)
+                        .padding(.top, 10)
+                    Rectangle()
+                        .fill(.white)
+                        .frame(width: 3, height: 24)
+                        .padding(.top, -12)
+                }
+            } else {
+                Rectangle()
+                    .fill(.white)
+                    .frame(width: 24, height: 3)
+            }
+        }
+    }
+}
+// Optional preview
+#Preview {
+    @State var mockCount = 1
+    IngredientCard(
+        imageName: "honey",
+        amountLabel: "1 TBSP",
+        title: "PURE RAW HONEY",
+        count: $mockCount,
+        minCount: 1,
+        pricePerUnit: 0.50,
+        onPriceChange: { _ in }
+    )
+    .padding()
+    .frame(width: 300, height: 190)
+    .background(Color.gray.opacity(0.2))
+}
+
