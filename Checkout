@@ -1,0 +1,906 @@
+// CheckoutView.swift
+import SwiftUI
+
+struct CheckoutView: View {
+    @State private var showTimeMenu = false
+    @State private var selectedPickupTime: String = "7:50am"
+    @State private var showOrderTypeMenu = false
+    @Binding var selectedOrderType: String   // ⬅️ make this a binding
+    @State private var itemBeingEdited: CoffeeModel? = nil
+    @State private var showEditSheet = false
+    @Binding var selectedTab: Int           
+    let showSubscriptionPopup: () -> Void
+    @EnvironmentObject var cart: CartManager
+    @EnvironmentObject var userSession: UserSession
+    
+    @State private var showPaymentSuccess = false
+    @State private var successPhrase = ""
+    @State private var discoRotation: Double = 0
+    let showLearnMore: () -> Void
+    @State private var subscriptionItems: [CoffeeModel] = []
+    @State private var hasPickedDrink = false
+    @EnvironmentObject var subscriptionManager: SubscriptionManager
+
+    // ✅ Keep logic out of the ViewBuilder
+    private var total: Double {
+        cart.items.reduce(0) { $0 + $1.finalPrice }
+    }
+    
+    private let successPhrases = [
+           "Every purchase builds the reverse loop.",
+           "You just kept $X.XX in your community.",
+           "Your order helps fund local projects."
+       ]
+
+    var body: some View {
+        ZStack {
+            Color(hex: "#F7F0EC")
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                headerSection
+                mainContent
+            }
+
+            // ───────── TIME + ORDER TYPE MODALS ─────────
+            if showTimeMenu {
+                dropdownOverlay { showTimeMenu = false }
+                ContextualMenu { selection in
+                    selectedPickupTime = selection
+                    showTimeMenu = false
+                }
+                .offset(y: -80)
+            }
+
+            if showOrderTypeMenu {
+                dropdownOverlay { showOrderTypeMenu = false }
+                OrderTypeMenu { selection in
+                    selectedOrderType = selection 
+                    showOrderTypeMenu = false
+                }
+                .offset(y: -80)
+            }
+        }
+        .onChange(of: selectedTab) { newValue in
+                // as soon as you leave checkout tab, reset success state
+                if newValue != 1 {
+                    showPaymentSuccess = false
+                    successPhrase = ""
+                    discoRotation = 0
+                }
+            }
+        .sheet(item: $itemBeingEdited) { selectedItem in
+            CoffeeDetailView(
+                coffee: selectedItem,
+                coffeeImageName: selectedItem.imageName,
+                coffeeName: selectedItem.name,
+                caloriesText: "\(selectedItem.calories) cal",
+                selectedTab: $selectedTab,
+                selectedOrderType: $selectedOrderType,
+                closeAction: { itemBeingEdited = nil }
+            )
+            .environmentObject(cart)
+            .environmentObject(subscriptionManager)
+        }
+    }
+    private var subscriptionCartList: some View {
+        ZStack {
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(subscriptionManager.items) { item in
+                        HStack(alignment: .top, spacing: 14) {
+                            Image(item.imageName)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 70, height: 70)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.name)
+                                    .font(.custom("Konkhmer Sleokchher", size: 16))
+
+                                Text("\(item.ounces) fl oz")
+                                    .font(.custom("Konkhmer Sleokchher", size: 13))
+
+                                Text("\(item.calories) cal")
+                                    .font(.custom("Konkhmer Sleokchher", size: 13))
+                                    .opacity(0.53)
+
+                                HStack(spacing: 24) {
+                                    // Edit opens detail sheet (same logic as One-time)
+                                    Button {
+                                        itemBeingEdited = item
+                                        showEditSheet = true
+                                    } label: {
+                                        Image(systemName: "pencil")
+                                    }
+
+                                    // No plus button for subscription
+                                    Button {
+                                        withAnimation {
+                                            subscriptionManager.items.removeAll { $0.id == item.id }
+                                        }
+                                    } label: {
+                                        Image(systemName: "trash")
+                                    }
+                                }
+                                .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                                .padding(.top, 6)
+                            }
+
+                            Spacer()
+                        }
+                        .padding(.horizontal, 28)
+                        .padding(.top, 26)
+
+                        Rectangle()
+                            .fill(Color.black.opacity(0.16))
+                            .frame(height: 1)
+                            .padding(.top, 20)
+                            .padding(.horizontal, 28)
+                    }
+
+                    Spacer().frame(height: 170)
+                }
+            }
+
+            // Bottom "Place Order" pill
+            Button {
+                placeSubscriptionOrder()
+            } label: {
+                Text("Place Order")
+                    .font(.custom("Konkhmer Sleokchher", size: 16))
+                    .foregroundColor(.white)
+                    .frame(width: 220, height: 50)
+                    .background(
+                        RoundedRectangle(cornerRadius: 40)
+                            .fill(Color(hex: "#D98825"))
+                    )
+            }
+            .padding(.trailing, 22)
+            .padding(.bottom, 32)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        }
+    }
+    private func placeSubscriptionOrder() {
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+            successPhrase = successPhrases.randomElement()!
+            showPaymentSuccess = true
+        }
+
+        // Log subscription drinks as $0 purchases
+        for item in subscriptionManager.items {
+            userSession.addBillingRecord(itemName: item.name, amount: 0)
+        }
+
+        subscriptionManager.items.removeAll()
+        hasPickedDrink = false
+    }
+
+
+    // MARK: - HEADER
+
+    private var headerSection: some View {
+        ZStack(alignment: .bottom) {
+            Color(hex: "#D98825")
+                .ignoresSafeArea(edges: .top)
+
+            VStack(spacing: 22) {
+                Text("CHECKOUT")
+                    .font(.custom("Konkhmer Sleokchher", size: 30))
+                    .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                    .padding(.bottom, 30)
+
+                VStack(spacing: 6) {
+                    HStack {
+                        Text("PICKUP TIME")
+                            .font(.custom("Konkhmer Sleokchher", size: 9))
+                            .padding(.bottom, -100)
+                            .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                            .frame(width: 140, alignment: .leading)
+
+                        Rectangle()
+                            .fill(Color.clear)
+                            .frame(width: 28)
+
+                        Text("ORDER TYPE")
+                            .font(.custom("Konkhmer Sleokchher", size: 9))
+                            .padding(.bottom, -100)
+                            .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                            .frame(width: 160, alignment: .leading)
+                    }
+                }
+
+                HStack(spacing: 28) {
+                    // PICKUP TIME PILL
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white.opacity(0.85))
+                            .frame(width: 140, height: 56)
+                            .shadow(color: .black.opacity(0.25), radius: 6, x: 0, y: 4)
+
+                        HStack(spacing: 8) {
+                            Image(systemName: "clock")
+                            Text(selectedPickupTime)
+                                .font(.custom("Konkhmer Sleokchher", size: 12))
+                        }
+                    }
+                    .onTapGesture {
+                        withAnimation {
+                            showTimeMenu.toggle()
+                        }
+                    }
+
+                    // ORDER TYPE PILL
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white.opacity(0.85))
+                            .frame(width: 160, height: 56)
+                            .shadow(color: .black.opacity(0.25), radius: 6, x: 0, y: 4)
+
+                        HStack(spacing: 8) {
+                            Image(systemName: "star.fill")
+                            Text(selectedOrderType)
+                                .font(.custom("Konkhmer Sleokchher", size: 12))
+                        }
+                    }
+                    .onTapGesture {
+                        withAnimation {
+                            showOrderTypeMenu.toggle()
+                        }
+                    }
+                }
+                .padding(.bottom, 16)
+            }
+            .padding(.top, 30)
+        }
+        .frame(height: 210)
+    }
+
+    // MARK: - MAIN CONTENT
+
+    private var mainContent: some View {
+        ZStack {
+            if selectedOrderType == "One-time" {
+
+                // Payment success ALWAYS has priority — never show empty state beforehand
+                if showPaymentSuccess {
+                    successState
+
+                } else if cart.items.isEmpty {
+                    emptyState
+
+                } else {
+                    cartListWithSummary
+                }
+
+            } else { // SUBSCRIPTION ORDER TYPE
+                if showPaymentSuccess {
+                    successState      // 💥 success screen takes full priority
+                } else if userSession.currentPlan == nil {
+                    subscriptionPlaceholder
+                } else if subscriptionManager.items.isEmpty {
+                    subscriptionChooseDrink
+                } else {
+                    subscriptionList
+                }
+            }
+        }
+    }
+    private var subscriptionList: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                ForEach(subscriptionManager.items) { item in
+                    HStack(alignment: .top, spacing: 14) {
+                        Image(item.imageName)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 70, height: 70)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.name)
+                                .font(.custom("Konkhmer Sleokchher", size: 16))
+
+                            Text("\(item.ounces) fl oz")
+                                .font(.custom("Konkhmer Sleokchher", size: 13))
+
+                            Text("\(item.calories) cal")
+                                .font(.custom("Konkhmer Sleokchher", size: 13))
+                                .opacity(0.53)
+
+                            let extrasList = extrasSummary(for: item).components(separatedBy: ", ")
+                            ForEach(extrasList, id: \.self) { extra in
+                                Text(extra)
+                                    .font(.custom("Konkhmer Sleokchher", size: 13))
+                                    .opacity(0.53)
+                            }
+
+                            HStack(spacing: 24) {
+                                // Allow editing
+                                Button {
+                                    itemBeingEdited = item
+                                    showEditSheet = true
+                                } label: {
+                                    Image(systemName: "pencil")
+                                }
+
+                                // Allow deleting
+                                Button {
+                                    withAnimation {
+                                        subscriptionManager.items.removeAll { $0.id == item.id }
+                                    }
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                            }
+                            .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                            .padding(.top, 6)
+                        }
+
+                        Spacer()
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.top, 26)
+
+                    Rectangle()
+                        .fill(Color.black.opacity(0.16))
+                        .frame(height: 1)
+                        .padding(.top, 20)
+                        .padding(.horizontal, 28)
+                }
+
+                // spacer so buttons don’t cover list
+                Spacer().frame(height: 170)
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Button {
+                // 🔥 Trigger success screen
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                    successPhrase = successPhrases.randomElement()!
+                    showPaymentSuccess = true
+                }
+
+                // 🔥 Log billing history as $0 charge
+                for item in subscriptionManager.items {
+                    userSession.recordPurchase(itemName: item.name, amount: 0)
+                }
+
+                // 🔥 Clear subscription drinks
+                subscriptionManager.items.removeAll()
+
+            } label: {
+                Text("Place Order")
+                    .font(.custom("Konkhmer Sleokchher", size: 16))
+                    .foregroundColor(.white)
+                    .frame(width: 220, height: 50)
+                    .background(
+                        RoundedRectangle(cornerRadius: 40)
+                            .fill(Color(hex: "#D98825"))
+                    )
+            }
+            .padding(.trailing, 22)
+            .padding(.bottom, 32)
+        }
+    }
+
+    private var subscriptionChooseDrink: some View {
+        VStack(spacing: 40) {
+            Spacer()
+
+            Text("Pick your drink")
+                .font(.custom("Konkhmer Sleokchher", size: 24))
+                .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+
+            Button {
+                selectedTab = 0  // go to the Menu tab
+            } label: {
+                Text("Choose Drink")
+                    .font(.custom("Konkhmer Sleokchher", size: 15))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 40)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 40)
+                            .fill(Color(hex: "#D98825"))
+                    )
+            }
+
+            Spacer()
+        }
+        .onAppear {
+            hasPickedDrink = !subscriptionItems.isEmpty
+        }
+    }
+
+
+    private var successState: some View {
+        VStack(spacing: 26) {
+            Spacer()
+
+            Image("disco_ball")   // make sure this is added to Assets
+                .resizable()
+                .scaledToFit()
+                .frame(width: 84, height: 84)
+                .shadow(radius: 5)
+
+            Text(successPhrase)
+                .font(.custom("Konkhmer Sleokchher", size: 22))
+                .fontWeight(.semibold)
+                .lineSpacing(4)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+                .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+
+            Button {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                    showLearnMore()
+                }
+            } label: {
+                Text("Learn More")
+                    .font(.custom("Konkhmer Sleokchher", size: 15))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 38)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 40)
+                            .fill(Color(hex: "#D98825"))
+                    )
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+    }
+    
+    private var paymentSuccessView: some View {
+        VStack(spacing: 22) {
+            Spacer()
+
+            // Disco ball
+            Image("disco_ball")        // use whatever asset name you have
+                .resizable()
+                .scaledToFit()
+                .frame(width: 60, height: 60)
+                .rotationEffect(.degrees(discoRotation))
+                .onAppear {
+                    // start spinning when this view appears
+                    discoRotation = 0
+                    withAnimation(.linear(duration: 1.4).repeatForever(autoreverses: false)) {
+                        discoRotation = 360
+                    }
+                }
+
+            // Random phrase
+            Text(successPhrase)
+                .font(.custom("Konkhmer Sleokchher", size: 14))
+                .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 36)
+
+            // Learn More button -> opens existing sheet
+            Button {
+                showLearnMore()
+            } label: {
+                Text("Learn More")
+                    .font(.custom("Konkhmer Sleokchher", size: 14))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 40)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 40)
+                            .fill(Color.gray.opacity(0.75))
+                    )
+            }
+
+            Spacer()
+        }
+    }
+    
+    private var subscriptionPlaceholder: some View {
+        VStack(spacing: 22) {
+            Spacer()
+            Text("Not subscribed yet")
+                .font(.custom("Konkhmer Sleokchher", size: 20))
+                .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+            Button {
+                showSubscriptionPopup()
+            } label: {
+                Text("Subscribe")
+                    .font(.custom("Konkhmer Sleokchher", size: 15))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 38)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 40)
+                            .fill(Color(hex: "#D98825"))
+                    )
+            }
+            Spacer()   // adds breathing room but won't push text off-screen
+                }
+                .padding(.horizontal, 30)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 18) {
+            Spacer()
+            Text("Nothing in cart")
+                .font(.custom("Konkhmer Sleokchher", size: 20))
+
+            Button {
+                withAnimation {
+                    selectedTab = 0
+                }
+            } label: {
+                Text("Order Now")
+                    .font(.custom("Konkhmer Sleokchher", size: 14))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 38)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 40)
+                            .fill(Color(hex: "#D98825"))
+                    )
+            }
+            Spacer()
+        }
+    }
+
+    private var cartListWithSummary: some View {
+        ZStack {
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(cart.items) { item in
+                        HStack(alignment: .top, spacing: 14) {
+                            Image(item.imageName)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 70, height: 70)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.name)
+                                    .font(.custom("Konkhmer Sleokchher", size: 16))
+
+                                Text("\(item.ounces) fl oz")
+                                    .font(.custom("Konkhmer Sleokchher", size: 13))
+
+                                Text("\(item.calories) cal")
+                                    .font(.custom("Konkhmer Sleokchher", size: 13))
+                                    .opacity(0.53)
+
+                                HStack(spacing: 24) {
+                                    Button {
+                                        itemBeingEdited = item     // which cart item we're editing
+                                        showEditSheet = true
+                                    } label: {
+                                        Image(systemName: "pencil")
+                                    }
+                                    Button {
+                                        if let index = cart.items.firstIndex(where: { $0.id == item.id }) {
+                                            let copy = cart.items[index]
+
+                                            let duplicated = CoffeeModel(
+                                                name: copy.name,
+                                                imageName: copy.imageName,
+                                                calories: copy.calories,
+                                                basePrice: copy.basePrice,
+                                                finalPrice: copy.finalPrice,
+                                                ounces: copy.ounces,
+                                                honeyScoops: copy.honeyScoops,
+                                                milkCups: copy.milkCups,
+                                                creamShots: copy.creamShots,
+                                                espressoShots: copy.espressoShots,
+                                                minHoneyScoops: copy.minHoneyScoops,
+                                                minMilkCups: copy.minMilkCups,
+                                                minCreamShots: copy.minCreamShots,
+                                                minEspressoShots: copy.minEspressoShots
+                                            )
+
+                                            cart.items.append(duplicated)
+                                        }
+
+                                    } label: {
+                                        Image(systemName: "plus.circle")
+                                    }
+                                    Button {
+                                        withAnimation {
+                                            cart.items.removeAll { $0.id == item.id }
+                                        }
+                                    } label: {
+                                        Image(systemName: "trash")
+                                    }
+                                }
+                                .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                                .padding(.top, 6)
+                            }
+
+                            Spacer()
+
+                            VStack(alignment: .trailing, spacing: 2) {
+                                // Base price (always the same)
+                                Text(String(format: "$%.2f", item.basePrice))
+                                    .font(.custom("Konkhmer Sleokchher", size: 13))
+                                    .opacity(0.53)
+
+                                // New: show only what was added above base
+                                let extrasList = extrasSummary(for: item).components(separatedBy: ", ")
+                                ForEach(extrasList, id: \.self) { extra in
+                                    Text(extra)
+                                        .font(.custom("Konkhmer Sleokchher", size: 13))
+                                        .opacity(0.53)
+                                }
+
+                                Spacer().frame(height: 35)
+
+                                // Final price with add-ons
+                                Text(String(format: "$%.2f", item.finalPrice))
+                                    .font(.custom("Konkhmer Sleokchher", size: 13))
+                                    .fontWeight(.bold)
+                            }
+
+                        }
+                        .padding(.horizontal, 28)
+                        .padding(.top, 26)
+
+                        Rectangle()
+                            .fill(Color.black.opacity(0.16))
+                            .frame(height: 1)
+                            .padding(.top, 20)
+                            .padding(.horizontal, 28)
+                    }
+
+                    // Space under last item so overlay buttons don’t cover it
+                    Spacer().frame(height: 170)
+                }
+            }
+
+            floatingSummaryButtons
+        }
+        
+    }
+    
+    
+    private func extrasSummary(for item: CoffeeModel) -> String {
+        var parts: [String] = []
+
+        let extraHoney    = item.honeyScoops   - item.minHoneyScoops
+        let extraMilk     = item.milkCups      - item.minMilkCups
+        let extraCream    = item.creamShots    - item.minCreamShots
+        let extraEspresso = item.espressoShots - item.minEspressoShots
+
+        if extraEspresso > 0 {
+            parts.append("+\(extraEspresso) shots of espresso")
+        }
+        if extraHoney > 0 {
+            parts.append("+\(extraHoney) honey")
+        }
+        if extraMilk > 0 {
+            parts.append("+\(extraMilk) milk")
+        }
+        if extraCream > 0 {
+            parts.append("+\(extraCream) cream")
+        }
+
+        return parts.joined(separator: ", ")
+    }
+    
+    private func addonsSummary(for item: CoffeeModel) -> String {
+        var list: [String] = []
+        if item.espressoShots > 0 { list.append("+\(item.espressoShots) shots of espresso") }
+        if item.honeyScoops > 0 { list.append("+\(item.honeyScoops) honey") }
+        if item.milkCups > 0 { list.append("+\(item.milkCups) milk") }
+        if item.creamShots > 0 { list.append("+\(item.creamShots) cream") }
+        return list.joined(separator: ", ")
+    }
+
+    private var floatingSummaryButtons: some View {
+        Group {
+            if !cart.items.isEmpty {
+                Button {
+                    let totalPaid = total
+
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                        successPhrase = successPhrases.randomElement()!
+                            .replacingOccurrences(of: "$X.XX",
+                                                  with: String(format: "$%.2f", total))
+                        showPaymentSuccess = true
+                    }
+
+                    // 🔥 Log billing + spending BEFORE clearing cart
+                    for item in cart.items {
+                                        userSession.recordPurchase(
+                                            itemName: item.name,
+                                            amount: item.finalPrice
+                                        )
+                                    }
+
+                    // 🔥 Now clear the cart
+                    cart.items.removeAll()
+                }label: {
+                    Text(String(format: "Pay — $%.2f", total))
+                        .font(.custom("Konkhmer Sleokchher", size: 16))
+                        .foregroundColor(.white)
+                        .frame(width: 220, height: 50)
+                        .background(
+                            RoundedRectangle(cornerRadius: 40)
+                                .fill(Color(hex: "#D98825"))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 40)
+                                .stroke(Color(hex: "#E89E44"), lineWidth: 1)
+                        )
+                }
+                .padding(.trailing, 22)
+                .padding(.bottom, 32)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            }
+        }
+    }
+
+    // MARK: - OVERLAY
+
+    @ViewBuilder
+    private func dropdownOverlay(_ close: @escaping () -> Void) -> some View {
+        Color.black.opacity(0.25)
+            .ignoresSafeArea()
+            .onTapGesture {
+                close()
+            }
+    }
+    
+}
+
+// MARK: - ORDER TYPE MENU
+
+struct OrderTypeMenu: View {
+    let onSelect: (String) -> Void
+    private let options = ["One-time", "Subscription"]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(options.indices, id: \.self) { index in
+                let label = options[index]
+
+                MenuItem(label: label)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        onSelect(label)
+                    }
+
+                if index != options.indices.last {
+                    Divider()
+                        .opacity(0.36)
+                        .background(Color(red: 0.235, green: 0.235, blue: 0.263))
+                }
+            }
+        }
+        .frame(width: 254)
+        .background(.ultraThinMaterial)
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 64, x: 0, y: 8)
+    }
+}
+
+
+// MARK: - TIME MENU
+
+struct ContextualMenu: View {
+    let onSelect: (String) -> Void
+
+    private let times = ["8:00am", "8:30am", "11:50am", "12:00pm"]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(times.indices, id: \.self) { index in
+                let label = times[index]
+
+                MenuItem(label: label)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        onSelect(label)
+                    }
+
+                if index != times.indices.last {
+                    Divider()
+                        .opacity(0.36)
+                        .background(Color(red: 0.235, green: 0.235, blue: 0.263))
+                }
+            }
+        }
+        .frame(width: 254)
+        .background(.ultraThinMaterial)
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 64, x: 0, y: 8)
+    }
+}
+
+// MARK: - MENU ITEM
+
+struct MenuItem: View {
+    var label: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .font(.custom("Konkhmer Sleokchher", size: 17))
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 11)
+        .frame(height: 44)
+        .background(
+            Color(red: 0.929, green: 0.929, blue: 0.929)
+                .opacity(0.8)
+        )
+    }
+}
+
+// MARK: - HEX COLOR HELPER
+
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+
+        let a, r, g, b: UInt64
+
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (
+                255,
+                (int >> 8) * 17,
+                (int >> 4 & 0xF) * 17,
+                (int & 0xF) * 17
+            )
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (
+                255,
+                int >> 16,
+                int >> 8 & 0xFF,
+                int & 0xFF
+            )
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (
+                int >> 24,
+                int >> 16 & 0xFF,
+                int >> 8 & 0xFF,
+                int & 0xFF
+            )
+        default:
+            (a, r, g, b) = (255, 0, 0, 0)
+        }
+
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue: Double(b) / 255,
+            opacity: Double(a) / 255
+        )
+    }
+}
+
+
+// MARK: - PREVIEW
+
+#Preview {
+    let cart = CartManager()
+    let userSession = UserSession()
+    let subscriptionManager = SubscriptionManager()
+
+    return CheckoutView(
+        selectedOrderType: .constant("One-time"),
+        selectedTab: .constant(1),
+        showSubscriptionPopup: {},
+        showLearnMore: {}
+    )
+    .environmentObject(cart)
+    .environmentObject(userSession)
+    .environmentObject(subscriptionManager)
+}
+
+
+
