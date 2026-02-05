@@ -1,0 +1,132 @@
+import SwiftUI
+
+struct LearnMoreView: View {
+    let closeAction: () -> Void       // called when X is pressed
+    
+    var body: some View {
+        ZStack(alignment: .top) {
+            
+            // MAIN SCROLLING CONTENT (no full-screen background here)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 35) {
+                    
+                    // MARK: - Header
+                    VStack(spacing: 6) {
+                        Text("THE LOOP")
+                            .font(.custom("Konkhmer Sleokchher", size: 16))
+                            .tracking(3)
+                            .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                    }
+                    .padding(.top, 70)  // visually under the Dynamic Island
+                    
+                    // MARK: - WHY WE EXIST
+                    SectionView(
+                        title: "WHY WE EXIST",
+                        icon: "leaf.fill",
+                        content:
+"""
+Out here, good food isn’t hard to grow, it’s just hard to reach. Most rural families live near fertile land and small producers, but still end up buying meals made hundreds of miles away.
+
+Processed food has become the norm because it’s cheap, quick, and familiar. But that convenience has come with a cost — poor health outcomes, low-paying jobs, and fewer opportunities for the next generation.
+
+When our dollars leave the community, our stability leaves with them.
+"""
+                    )
+                    
+                    // MARK: - OUR VISION
+                    SectionView(
+                        title: "OUR VISION",
+                        icon: "lightbulb.fill",
+                        content:
+"""
+We believe rural America can feed itself again and be stronger for it.
+
+Our vision is to make healthy, locally sourced food affordable and accessible, while helping communities keep more of their money circulating close to home.
+
+Every order is a step toward ending the “doom loop” that drains small towns of talent and resources. By reconnecting people to nearby producers, we’re rebuilding the local food chain from the ground up — reminding people that independence starts with how we eat.
+"""
+                    )
+                    
+                    // MARK: - OUR CONCEPT
+                    SectionView(
+                        title: "OUR CONCEPT",
+                        icon: "cup.and.saucer.fill",
+                        content:
+"""
+This app connects our community to real food and real people.
+
+Members can find locally roasted coffee, grass-fed beef, raw dairy, and fresh produce — all sourced within our region and held to high standards for quality and care.
+
+Membership isn’t just about perks — it’s about belonging to something that gives back. A portion of every sale supports local projects and small producers so we’re building something sustainable, healthy, and truly our own.
+
+Buy local. Eat well. Keep your dollars home.
+"""
+                    )
+                }
+                .padding(.horizontal, 35)   // nice side margins
+                .padding(.bottom, 170)       // extra space at bottom of scroll
+            }
+            
+            // MARK: - Close button
+            HStack {
+                Spacer()
+                Button(action: {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                        closeAction()       // triggers reverse animation in ContentView
+                    }
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                        .padding(.trailing, 28)
+                        .padding(.top, 22)
+                }
+            }
+        }
+        // Top shadow bar (inside the card)
+        .overlay(
+            VStack {
+                Rectangle()
+                    .fill(Color.black.opacity(0.18))
+                    .frame(height: 18)
+                    .blur(radius: 12)
+                Spacer()
+            },
+            alignment: .top
+        )
+    }
+}
+
+struct SectionView: View {
+    let title: String
+    let icon: String
+    let content: String
+    
+    var body: some View {
+        VStack(alignment: .center, spacing: 15) {
+            // Centered icon + title
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 24))
+                    .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                
+                Text(title)
+                    .font(.custom("Konkhmer Sleokchher", size: 15))
+                    .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            
+            // Paragraph text stays left-aligned
+            Text(content)
+                .font(.custom("Konkhmer Sleokchher", size: 15))
+                .foregroundColor(Color(red: 0.145, green: 0.098, blue: 0.051))
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 5)
+        }
+    }
+}
+
+#Preview {
+    LearnMoreView(closeAction: {})
+}
