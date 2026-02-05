@@ -1,0 +1,12 @@
+import Foundation
+
+extension Notification.Name {
+    static let subscriptionDrinkAdded = Notification.Name("subscriptionDrinkAdded")
+}
+//
+//  SubscriptionEvent.swift
+//  beef+brew
+//
+//  Created by Hali Murphy on 12/1/25.
+//
+
