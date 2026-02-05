@@ -1,0 +1,947 @@
+import SwiftUI
+
+// MARK: - Models
+
+struct Achievement: Identifiable {
+    let id = UUID()
+    let iconName: String       // SF Symbol, e.g. "trophy.fill"
+    let threshold: Double      // dollars required
+    let title: String          // "$50 local spending"
+    let subtitle: String       // description when unlocked
+}
+
+struct SubscriptionPlan: Identifiable, Equatable {
+    let id = UUID()
+    let name: String            // "Weekly Plan"
+    let header: String          // "WEEKLY PLAN"
+    let perks: [String]
+    let savingsLine: String     // "SAVED $3/WEEK"
+    let renewalLine: String     // "Renewal: XX/XX"
+    let savingsEmphasis: Bool   // whether to tint savings line gold
+}
+
+// MARK: - MAIN ACCOUNT VIEW
+
+struct AccountMainView: View {
+
+    // Accordion state
+    @State private var showImpact = false
+    @State private var showAchievements = false
+    @State private var showSubscriptionSection = false
+    @State private var showAccountSection = false
+
+    // Achievement popup state
+    @State private var showAchievementDetail = false
+    @State private var selectedAchievement: Achievement? = nil
+
+    // Subscription state
+    @State private var showSubscriptionPopup = false      // plan picker
+    @State private var showManageSubscriptionPopup = false
+    //@State private var currentPlan: SubscriptionPlan? = nil
+
+    // Account editing state
+    @State private var editingField: String? = nil
+    @State private var tempFieldValue: String = ""
+
+    @EnvironmentObject var userSession: UserSession
+
+    // Impact dummy data
+    private let impactData: [(Double, String)] = [
+        (0.60, "You've kept $186 circulating in your community this month!"),
+        (0.20, "You've kept $300 circulating in your community this year!"),
+        (0.05, "You've kept $500 circulating in your community forever!")
+    ]
+
+    // Badge set (SF Symbols)
+    private let achievements: [Achievement] = [
+        Achievement(
+            iconName: "checkmark.seal.fill",
+            threshold: 50,
+            title: "$50 local spending",
+            subtitle: "You've made your first impact toward fresher food access."
+        ),
+        Achievement(
+            iconName: "rosette",
+            threshold: 200,
+            title: "$200 local spending",
+            subtitle: "You're feeding your town — literally."
+        ),
+        Achievement(
+            iconName: "shield.fill",
+            threshold: 500,
+            title: "$500 local spending",
+            subtitle: "Your choices ripple through the local economy."
+        ),
+        Achievement(
+            iconName: "trophy.fill",
+            threshold: 1_000,
+            title: "$1,000 local spending",
+            subtitle: "You're helping keep families and farms rooted here."
+        ),
+        Achievement(
+            iconName: "star.fill",
+            threshold: 2_500,
+            title: "$2,500 local spending",
+            subtitle: "You're part of the revival of rural Texas economies."
+        )
+    ]
+
+  /*  // Subscription plans (for popup + accordion)
+    private let subscriptionPlans: [SubscriptionPlan] = [
+        SubscriptionPlan(
+            name: "Weekly",
+            header: "WEEKLY PLAN",
+            perks: [
+                "5 drinks per week",
+                "Skip any week",
+                "Free branded cup"
+            ],
+            savingsLine: "SAVED $3/WEEK",
+            renewalLine: "Renewal: XX/XX",
+            savingsEmphasis: true
+        ),
+        SubscriptionPlan(
+            name: "Monthly",
+            header: "MONTHLY PLAN",
+            perks: [
+                "20 drinks per month",
+                "Rollover unused drinks",
+                "Free branded cup",
+                "Priority pickup"
+            ],
+            savingsLine: "SAVED $18/MONTH",
+            renewalLine: "Renewal: XX/XX",
+            savingsEmphasis: true
+        ),
+        SubscriptionPlan(
+            name: "School Year",
+            header: "SCHOOL YEAR PLAN",
+            perks: [
+                "Unlimited drinks",
+                "Rollover unused",
+                "Priority pickup",
+                "Free branded cup"
+            ],
+            savingsLine: "SAVED $240/YEAR",
+            renewalLine: "Renewal: XX/XX",
+            savingsEmphasis: true
+        )
+    ]
+*/
+    // palette
+    private let cream = Color(red: 0.969, green: 0.949, blue: 0.929)
+    private let dark  = Color(red: 0.145, green: 0.098, blue: 0.051)
+    private let gold  = Color(red: 0.851, green: 0.537, blue: 0.157)
+
+    var body: some View {
+        ZStack {
+            cream.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                Spacer().frame(height: 65)
+
+                // Greeting – fallback if name not set
+                Text("HI \(userSession.firstName.isEmpty ? "XXXX" : userSession.firstName.uppercased())")
+                    .font(.custom("Konkhmer Sleokchher", size: 35))
+                    .foregroundColor(dark)
+
+                Spacer()
+
+                VStack(spacing: 0) {
+                    Divider().background(dark.opacity(0.38))
+
+                    // MARK: - YOUR IMPACT
+                    impactSection
+                        .environmentObject(userSession)
+
+                    Divider().background(dark.opacity(0.38))
+
+                    // MARK: - ACHIEVEMENTS
+                    Button {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                            showAchievements.toggle()
+                        }
+                    } label: {
+                        ZStack(alignment: .trailing) {
+                            Text("ACHIEVEMENTS")
+                                .font(.custom("Konkhmer Sleokchher", size: 24))
+                                .fontWeight(.bold)
+                                .foregroundColor(dark)
+                                .frame(maxWidth: .infinity, minHeight: 88)
+
+                            if showAchievements {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(dark)
+                                    .padding(.trailing, 24)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    if showAchievements {
+                        achievementsGrid
+                            .padding(.vertical, 24)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+
+                    Divider().background(dark.opacity(0.38))
+
+                    // MARK: - SUBSCRIPTION
+                    subscriptionSection
+
+                    Divider().background(dark.opacity(0.38))
+
+                    // MARK: - ACCOUNT
+                    accountSection
+
+                    Divider().background(dark.opacity(0.38))
+                }
+                .background(cream)
+
+                Spacer().frame(height: 52)
+            }
+
+            // MARK: - Achievement detail popup
+            if showAchievementDetail, let achievement = selectedAchievement {
+                Color.black.opacity(0.45)
+                    .ignoresSafeArea()
+                    .onTapGesture { closeDetail() }
+
+                AchievementDetailView(
+                    achievement: achievement,
+                    unlocked: userSession.totalLocalSpending >= achievement.threshold,
+                    closeAction: closeDetail
+                )
+                .frame(maxWidth: .infinity)
+                .frame(height: UIScreen.main.bounds.height)
+                .background(cream)
+                .cornerRadius(26)
+                .shadow(radius: 25)
+                .offset(y: showAchievementDetail ? 120 : UIScreen.main.bounds.height)
+            }
+
+            // MARK: - Subscription plan picker popup
+            if showSubscriptionPopup {
+                Color.black.opacity(0.45)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                            showSubscriptionPopup = false
+                        }
+                    }
+
+                SubscriptionPlanPopupView(
+                    plans: userSession.subscriptionPlans,
+                    closeAction: {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                            showSubscriptionPopup = false
+                        }
+                    },
+                    onSelectPlan: { plan in
+                        userSession.currentPlan = plan     // 🔥 write into shared state
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                            showSubscriptionPopup = false
+                        }
+                    }
+                )
+                .frame(maxWidth: .infinity)
+                .frame(height: UIScreen.main.bounds.height)
+                .background(cream)
+                .cornerRadius(26)
+                .shadow(radius: 25)
+                .offset(y: 120)
+            }
+
+            // MARK: - Manage subscription popup
+            if showManageSubscriptionPopup {
+                Color.black.opacity(0.45)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                            showManageSubscriptionPopup = false
+                        }
+                    }
+
+                ManageSubscriptionPopupView(
+                    closeAction: {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                            showManageSubscriptionPopup = false
+                        }
+                    },
+                    onUpgradeTapped: {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                            showManageSubscriptionPopup = false
+                            showSubscriptionPopup = true
+                        }
+                    }
+                )
+                .environmentObject(userSession)
+                .frame(maxWidth: .infinity)
+                .frame(height: UIScreen.main.bounds.height)
+                .background(cream)
+                .cornerRadius(26)
+                .shadow(radius: 25)
+                .offset(y: 120)
+            }
+        }
+    }
+
+    // MARK: - Close detail helper
+
+    private func closeDetail() {
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+            showAchievementDetail = false
+        }
+    }
+
+    // MARK: - Achievements grid
+
+    private var achievementsGrid: some View {
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 24), count: 3)
+
+        return LazyVGrid(columns: columns, spacing: 32) {
+            ForEach(achievements) { achievement in
+                let unlocked = userSession.totalLocalSpending >= achievement.threshold
+
+                Button {
+                    selectedAchievement = achievement
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                        showAchievementDetail = true
+                    }
+                } label: {
+                    ZStack {
+                        Image(systemName: achievement.iconName)
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundColor(unlocked ? dark : dark.opacity(0.18))
+
+                        if !unlocked {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(dark.opacity(0.45))
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 40)
+    }
+
+    // MARK: - Impact section
+
+    private var impactSection: some View {
+        VStack(spacing: 0) {
+            Button {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                    showImpact.toggle()
+                }
+            } label: {
+                ZStack(alignment: .trailing) {
+                    Text("YOUR IMPACT")
+                        .font(.custom("Konkhmer Sleokchher", size: 24))
+                        .fontWeight(.bold)
+                        .foregroundColor(dark)
+                        .frame(maxWidth: .infinity, minHeight: 88)
+
+                    // 👇 X appears only when open
+                    if showImpact {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(dark)
+                            .padding(.trailing, 24)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+
+            if showImpact {
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 34) {
+                        ForEach(impactData.indices, id: \.self) { index in
+                            let item = impactData[index]
+
+                            VStack(spacing: 50) {
+                                DonutChart(progress: item.0)
+
+                                Text(item.1)
+                                    .multilineTextAlignment(.center)
+                                    .font(.custom("Konkhmer Sleokchher", size: 14))
+                                    .foregroundColor(dark)
+                                    .lineSpacing(6)
+                                    .padding(.horizontal, 40)
+                            }
+                            .padding(.top, index == 0 ? 6 : 0)
+                        }
+
+                        Spacer().frame(height: 24)
+                    }
+                    .padding(.vertical, 6)
+                }
+                .frame(height: 360)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    // MARK: - Subscription section
+
+    private var subscriptionSection: some View {
+        VStack(spacing: 0) {
+            // Header with X when open
+            Button {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                    showSubscriptionSection.toggle()
+                }
+            } label: {
+                ZStack(alignment: .trailing) {
+                    Text("SUBSCRIPTION")
+                        .font(.custom("Konkhmer Sleokchher", size: 24))
+                        .fontWeight(.bold)
+                        .foregroundColor(dark)
+                        .frame(maxWidth: .infinity, minHeight: 88)
+
+                    if showSubscriptionSection {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(dark)
+                            .padding(.trailing, 24)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+
+            if showSubscriptionSection {
+                if let plan = userSession.currentPlan {
+                    subscribedView(for: plan)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                } else {
+                    notSubscribedView
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+        }
+    }
+
+    private var notSubscribedView: some View {
+        VStack(spacing: 24) {
+            Spacer().frame(height: 22)
+
+            Text("Not Subscribed")
+                .font(.custom("Konkhmer Sleokchher", size: 11))
+                .foregroundColor(dark.opacity(0.65))
+
+            Button {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                    showSubscriptionPopup = true
+                }
+            } label: {
+                Text("SUBSCRIBE")
+                    .font(.custom("Konkhmer Sleokchher", size: 14))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 40)
+                            .fill(gold)
+                    )
+                    .padding(.horizontal, 60)
+            }
+
+            Spacer().frame(height: 24)
+        }
+        .frame(maxWidth: .infinity)
+        .background(cream)
+    }
+
+    private func subscribedView(for plan: SubscriptionPlan) -> some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 22) {
+                Spacer().frame(height: 14)
+
+                Text(plan.header)
+                    .font(.custom("Konkhmer Sleokchher", size: 13))
+                    .kerning(3)
+                    .foregroundColor(dark)
+                    .padding(.bottom, 6)
+
+                ForEach(plan.perks, id: \.self) { perk in
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 13))
+                            .foregroundColor(gold)
+                        Text(perk)
+                            .font(.custom("Konkhmer Sleokchher", size: 12))
+                            .foregroundColor(dark)
+                    }
+                }
+
+                Text(plan.savingsLine)
+                    .font(.custom("Konkhmer Sleokchher", size: 13))
+                    .foregroundColor(plan.savingsEmphasis ? gold : dark)
+
+                Text(plan.renewalLine)
+                    .font(.custom("Konkhmer Sleokchher", size: 10))
+                    .foregroundColor(dark.opacity(0.55))
+
+                Button {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                        showManageSubscriptionPopup = true
+                    }
+                } label: {
+                    Text("Manage Subscription")
+                        .font(.custom("Konkhmer Sleokchher", size: 14))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 40)
+                                .fill(gold)
+                        )
+                        .padding(.top, 10)
+                }
+                .padding(.horizontal, 60)
+
+                Spacer().frame(height: 22)
+            }
+            .padding(.horizontal, 32)
+        }
+        .background(cream)
+    }
+
+    // MARK: - ACCOUNT SECTION
+
+    private var accountSection: some View {
+        VStack(spacing: 0) {
+            Button {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                    showAccountSection.toggle()
+                }
+            } label: {
+                ZStack(alignment: .trailing) {
+                    Text("ACCOUNT")
+                        .font(.custom("Konkhmer Sleokchher", size: 24))
+                        .fontWeight(.bold)
+                        .foregroundColor(dark)
+                        .frame(maxWidth: .infinity, minHeight: 88)
+
+                    if showAccountSection {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(dark)
+                            .padding(.trailing, 24)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+
+            if showAccountSection {
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 26) {
+                        Spacer().frame(height: 14)
+
+                        // Notifications toggle
+                        HStack {
+                            Text("NOTIFICATIONS")
+                                .font(.custom("Konkhmer Sleokchher", size: 14))
+                                .foregroundColor(dark)
+
+                            Spacer()
+
+                            Toggle("", isOn: $userSession.notificationsEnabled)
+                                .labelsHidden()
+                        }
+
+                        Divider().background(dark.opacity(0.25))
+
+                        // Profile fields
+                        accountFieldRow(label: "First Name", value: userSession.firstName) {
+                            editingField = "firstName"
+                            tempFieldValue = userSession.firstName
+                        }
+
+                        accountFieldRow(label: "Last Name", value: userSession.lastName) {
+                            editingField = "lastName"
+                            tempFieldValue = userSession.lastName
+                        }
+
+                        accountFieldRow(label: "Email", value: userSession.email) {
+                            editingField = "email"
+                            tempFieldValue = userSession.email
+                        }
+
+                        accountFieldRow(label: "Phone Number", value: userSession.phone) {
+                            editingField = "phone"
+                            tempFieldValue = userSession.phone
+                        }
+
+                        accountFieldRow(label: "Birthday", value: userSession.birthday) {
+                            editingField = "birthday"
+                            tempFieldValue = userSession.birthday
+                        }
+
+                        accountFieldRow(
+                            label: "Password",
+                            value: userSession.password.isEmpty ? "" : "••••••••"
+                        ) {
+                            editingField = "password"
+                            tempFieldValue = userSession.password
+                        }
+
+                        if let field = editingField {
+                            VStack(alignment: .leading, spacing: 14) {
+                                TextField("Edit \(field)", text: $tempFieldValue)
+                                    .font(.custom("Konkhmer Sleokchher", size: 12))
+                                    .padding(10)
+                                    .background(cream.opacity(0.8))
+                                    .cornerRadius(8)
+
+                                HStack(spacing: 16) {
+                                    Button("Cancel") {
+                                        editingField = nil
+                                        tempFieldValue = ""
+                                    }
+                                    .font(.custom("Konkhmer Sleokchher", size: 12))
+                                    .foregroundColor(dark.opacity(0.7))
+
+                                    Button("Save") {
+                                        saveProfileField()
+                                    }
+                                    .font(.custom("Konkhmer Sleokchher", size: 12))
+                                    .foregroundColor(gold)
+                                }
+                            }
+                            .padding(.top, 10)
+                        }
+
+                        Spacer().frame(height: 24)
+                    }
+                    .padding(.horizontal, 34)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    private func accountFieldRow(
+        label: String,
+        value: String,
+        onEdit: @escaping () -> Void
+    ) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.custom("Konkhmer Sleokchher", size: 11))
+                    .foregroundColor(dark.opacity(0.6))
+
+                Text(value.isEmpty ? "Not set" : value)
+                    .font(.custom("Konkhmer Sleokchher", size: 13))
+                    .foregroundColor(dark)
+            }
+
+            Spacer()
+
+            Button(action: onEdit) {
+                Text("Edit")
+                    .font(.custom("Konkhmer Sleokchher", size: 11))
+                    .foregroundColor(gold)
+            }
+        }
+    }
+
+    private func saveProfileField() {
+        switch editingField {
+        case "firstName":
+            userSession.firstName = tempFieldValue
+        case "lastName":
+            userSession.lastName = tempFieldValue
+        case "email":
+            userSession.email = tempFieldValue
+        case "phone":
+            userSession.phone = tempFieldValue
+        case "birthday":
+            userSession.birthday = tempFieldValue
+        case "password":
+            userSession.password = tempFieldValue
+        default:
+            break
+        }
+        editingField = nil
+        tempFieldValue = ""
+    }
+}
+
+// MARK: - Subscription plan picker popup
+
+struct SubscriptionPlanPopupView: View {
+    let plans: [SubscriptionPlan]
+    let closeAction: () -> Void
+    let onSelectPlan: (SubscriptionPlan) -> Void
+
+    private let cream = Color(red: 0.969, green: 0.949, blue: 0.929)
+    private let dark  = Color(red: 0.145, green: 0.098, blue: 0.051)
+    private let gold  = Color(red: 0.851, green: 0.537, blue: 0.157)
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 30) {
+                    Spacer().frame(height: 70)
+
+                    ForEach(plans) { plan in
+                        Button {
+                            onSelectPlan(plan)
+                        } label: {
+                            VStack(spacing: 14) {
+                                Text(plan.header)
+                                    .font(.custom("Konkhmer Sleokchher", size: 14))
+                                    .foregroundColor(dark)
+
+                                ForEach(plan.perks, id: \.self) { perk in
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(gold)
+                                        Text(perk)
+                                            .font(.custom("Konkhmer Sleokchher", size: 12))
+                                            .foregroundColor(dark)
+                                    }
+                                }
+
+                                Text(plan.savingsLine)
+                                    .font(.custom("Konkhmer Sleokchher", size: 13))
+                                    .foregroundColor(gold)
+                            }
+                            .padding(.vertical, 18)
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                RoundedRectangle(cornerRadius: 24)
+                                    .fill(cream)
+                                    .shadow(radius: 4)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    Spacer().frame(height: 30)
+                }
+                .padding(.horizontal, 32)
+            }
+
+            Button(action: closeAction) {
+                Image(systemName: "xmark")
+                    .foregroundColor(dark)
+                    .font(.system(size: 22, weight: .bold))
+            }
+            .padding(.top, 48)
+            .padding(.trailing, 32)
+        }
+    }
+}
+
+// MARK: - Manage subscription popup
+
+struct ManageSubscriptionPopupView: View {
+    let closeAction: () -> Void
+    let onUpgradeTapped: () -> Void
+    @EnvironmentObject var userSession: UserSession
+    @State private var selectedCardIndex: Int = 0
+    @State private var billingExpanded: Bool = false
+
+    private let cream = Color(red: 0.969, green: 0.949, blue: 0.929)
+    private let dark  = Color(red: 0.145, green: 0.098, blue: 0.051)
+    private let gold  = Color(red: 0.851, green: 0.537, blue: 0.157)
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 22) {
+                Spacer().frame(height: 50)
+
+                Text("MANAGE SUBSCRIPTION")
+                    .font(.custom("Konkhmer Sleokchher", size: 14))
+                    .kerning(3)
+                    .foregroundColor(dark)
+
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 24) {
+
+                        // PAYMENT METHODS
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Payment Method")
+                                .font(.custom("Konkhmer Sleokchher", size: 12))
+                                .foregroundColor(dark)
+
+                            ForEach(Array(userSession.paymentMethods.enumerated()), id: \.offset) { (idx, method) in
+                                paymentMethodRow(
+                                    brand: method,
+                                    last4: String(method.suffix(4)),
+                                    isSelected: idx == selectedCardIndex
+                                )
+                                .onTapGesture { selectedCardIndex = idx }
+                            }
+
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(dark.opacity(0.35), lineWidth: 1)
+                                .frame(height: 60)
+                                .overlay(
+                                    HStack {
+                                        Image(systemName: "creditcard")
+                                            .foregroundColor(dark.opacity(0.6))
+                                        Text("+ Add Payment Method")
+                                            .font(.custom("Konkhmer Sleokchher", size: 11))
+                                            .foregroundColor(dark.opacity(0.7))
+                                        Spacer()
+                                    }
+                                    .padding(.horizontal, 12)
+                                )
+                                .onTapGesture {
+                                    addPaymentMethod()
+                                }
+                        }
+
+                        // BILLING HISTORY
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Billing History")
+                                .font(.custom("Konkhmer Sleokchher", size: 12))
+                                .foregroundColor(dark)
+
+                            billingHistoryCard
+                        }
+
+                        // UPGRADE BUTTON
+                        Button {
+                            onUpgradeTapped()
+                        } label: {
+                            Text("Upgrade Subscription")
+                                .font(.custom("Konkhmer Sleokchher", size: 14))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 40)
+                                        .fill(gold)
+                                )
+                        }
+                        .padding(.top, 10)
+                    }
+                    .padding(.horizontal, 30)
+                    .padding(.bottom, 30)
+                }
+            }
+
+            Button(action: closeAction) {
+                Image(systemName: "xmark")
+                    .foregroundColor(dark)
+                    .font(.system(size: 22, weight: .bold))
+            }
+            .padding(.top, 32)
+            .padding(.trailing, 26)
+        }
+        .background(cream)
+    }
+
+    private func addPaymentMethod() {
+        let count = userSession.paymentMethods.count + 1
+        userSession.paymentMethods.append("VISA \(4000 + count)")
+    }
+
+    private func paymentMethodRow(brand: String, last4: String, isSelected: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 10)
+            .fill(isSelected ? cream.opacity(0.6) : cream)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(
+                        isSelected ? dark.opacity(0.7) : dark.opacity(0.35),
+                        lineWidth: isSelected ? 1.6 : 1
+                    )
+            )
+            .frame(height: 70)
+            .overlay(
+                HStack(spacing: 12) {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(dark.opacity(0.9))
+                        .frame(width: 38, height: 26)
+                        .overlay(
+                            Image(systemName: "creditcard.fill")
+                                .foregroundColor(.white)
+                                .font(.system(size: 14))
+                        )
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(brand)
+                            .font(.custom("Konkhmer Sleokchher", size: 11))
+                            .foregroundColor(dark)
+
+                        Text("ending in \(last4) • exp. date")
+                            .font(.custom("Konkhmer Sleokchher", size: 9))
+                            .foregroundColor(dark.opacity(0.6))
+                    }
+
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+            )
+    }
+
+    private var billingHistoryCard: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("DATE")
+                Spacer()
+                Text("ORDER")
+                Spacer()
+                Text("TOTAL")
+            }
+            .font(.custom("Konkhmer Sleokchher", size: 9))
+            .foregroundColor(dark)
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
+
+            Divider().background(dark.opacity(0.4))
+
+            ScrollView {
+                VStack(spacing: 6) {
+                    ForEach(userSession.billingHistory) { record in
+                        HStack {
+                            Text(record.date, style: .date)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Text(record.itemName)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                            Text(String(format: "$%.2f", record.amount))
+                                .frame(width: 50, alignment: .trailing)
+                        }
+                        .font(.custom("Konkhmer Sleokchher", size: 9))
+                        .foregroundColor(dark)
+                        .padding(.horizontal, 10)
+
+                        Divider().background(dark.opacity(0.2))
+                    }
+                }
+                .frame(height: billingExpanded ? 220 : 90)
+            }
+
+            Button {
+                billingExpanded.toggle()
+            } label: {
+                Text(billingExpanded ? "Collapse" : "See All")
+                    .font(.custom("Konkhmer Sleokchher", size: 10))
+                    .foregroundColor(dark.opacity(0.7))
+                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(dark.opacity(0.4), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Achievement Detail Popup
+
+
+// MARK: - Preview
+
+#Preview {
+    AccountMainView()
+        .environmentObject(UserSession())
+}
