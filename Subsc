@@ -1,0 +1,216 @@
+//
+//  SubscriptionView.swift
+//  beef+brew
+//
+//  Created by Hali Murphy on 11/16/25.
+//
+
+import SwiftUI
+
+struct SubscriptionView: View {
+
+    // MARK: - Static card builders for popup selection
+    static var WeeklyCard: some View {
+        PlanCard(
+            label: "WEEKLY",
+            labelTextColor: Color(red: 0.145, green: 0.098, blue: 0.051),
+            cardColor: Color(red: 0.906, green: 0.843, blue: 0.784),
+            mainTextColor: Color(red: 0.145, green: 0.098, blue: 0.051),
+            secondaryTextColor: Color(red: 0.145, green: 0.098, blue: 0.051).opacity(0.55),
+            price: "$25",
+            period: "per week",
+            saveLine: "SAVE $3/WEEK",
+            bullets: ["5 drinks per week","Skip any week","Free branded cup"],
+            accent: Color(red: 0.651, green: 0.224, blue: 0.129)
+        )
+    }
+
+    static var MonthlyCard: some View {
+        PlanCard(
+            label: "MONTHLY",
+            labelTextColor: Color(red: 0.969, green: 0.949, blue: 0.929),
+            cardColor: Color(red: 0.851, green: 0.537, blue: 0.157),
+            mainTextColor: Color(red: 0.969, green: 0.949, blue: 0.929),
+            secondaryTextColor: Color(red: 0.969, green: 0.949, blue: 0.929).opacity(0.55),
+            price: "$90",
+            period: "per month",
+            saveLine: "SAVE $18/MONTH",
+            bullets: ["20 drinks per month", "Rollover unused drinks", "Free branded cup", "Priority pickup"],
+            accent: Color(red: 0.651, green: 0.224, blue: 0.129)
+        )
+    }
+
+    static var SchoolYearCard: some View {
+        PlanCard(
+            label: "SCHOOL YEAR",
+            labelTextColor: Color(red: 0.145, green: 0.098, blue: 0.051),
+            cardColor: Color(red: 0.906, green: 0.843, blue: 0.784),
+            mainTextColor: Color(red: 0.145, green: 0.098, blue: 0.051),
+            secondaryTextColor: Color(red: 0.145, green: 0.098, blue: 0.051).opacity(0.55),
+            price: "$720",
+            period: "per year",
+            saveLine: "SAVE $240/YEAR",
+            bullets: ["Unlimited drinks","Rollover unused drinks","Priority pickup","Free branded cup"],
+            accent: Color(red: 0.651, green: 0.224, blue: 0.129)
+        )
+    }
+    
+    private let darkText = Color(red: 0.145, green: 0.098, blue: 0.051)
+    private let cream = Color(red: 0.969, green: 0.949, blue: 0.929)
+    private let lightCard = Color(red: 0.906, green: 0.843, blue: 0.784)
+    private let goldCard = Color(red: 0.851, green: 0.537, blue: 0.157)
+    private let accent = Color(red: 0.651, green: 0.224, blue: 0.129)
+    
+    private let weeklyPerks = ["5 drinks per week","Skip any week","Free branded cup"]
+    private let monthlyPerks = ["20 drinks per month","Rollover unused drinks","Free branded cup","Priority pickup"]
+    private let schoolPerks = ["Unlimited drinks","Rollover unused drinks","Priority pickup","Free branded cup"]
+    
+    var body: some View {
+        ZStack {
+            cream.ignoresSafeArea()
+            
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 28) {
+                    
+                    // HEADER
+                    VStack(spacing: 15) {
+                        Text("SUBSCRIBE")
+                            .font(.custom("Konkhmer Sleokchher", size: 35))
+                            .foregroundColor(darkText)
+                            .padding(.top, 52)
+                        
+                        Text("DON'T THINK ABOUT IT, JUST PICK UP")
+                            .font(.custom("Konkhmer Sleokchher", size: 12))
+                            .foregroundColor(darkText)
+                    }
+                    .padding(.top, 60)
+                    .padding(.bottom, 10)
+                    
+                    // WEEKLY
+                    PlanCard(
+                        label: "WEEKLY",
+                        labelTextColor: darkText,
+                        cardColor: lightCard,
+                        mainTextColor: darkText,
+                        secondaryTextColor: darkText.opacity(0.55),
+                        price: "$25",
+                        period: "per week",
+                        saveLine: "SAVE $3/WEEK",
+                        bullets: weeklyPerks,
+                        accent: accent
+                    )
+                    
+                    // MONTHLY
+                    PlanCard(
+                        label: "MONTHLY",
+                        labelTextColor: cream,
+                        cardColor: goldCard,
+                        mainTextColor: cream,
+                        secondaryTextColor: cream.opacity(0.55),
+                        price: "$90",
+                        period: "per month",
+                        saveLine: "SAVE $18/MONTH",
+                        bullets: monthlyPerks,
+                        accent: accent
+                    )
+                    
+                    // SCHOOL YEAR
+                    PlanCard(
+                        label: "SCHOOL YEAR",
+                        labelTextColor: darkText,
+                        cardColor: lightCard,
+                        mainTextColor: darkText,
+                        secondaryTextColor: darkText.opacity(0.55),
+                        price: "$720",
+                        period: "per year",
+                        saveLine: "SAVE $240/YEAR",
+                        bullets: schoolPerks,
+                        accent: accent
+                    )
+                    
+                    Spacer(minLength: 40)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 10)
+            }
+        }
+    }
+}
+
+
+private struct PlanCard: View {
+    let label: String
+    let labelTextColor: Color
+    
+    let cardColor: Color
+    let mainTextColor: Color
+    let secondaryTextColor: Color
+    
+    let price: String
+    let period: String
+    let saveLine: String
+    let bullets: [String]
+    
+    let accent: Color
+    
+    var body: some View {
+        ZStack(alignment: .top) {
+            
+            // CARD
+            RoundedRectangle(cornerRadius: 18)
+                .fill(cardColor)
+                .shadow(color: Color.black.opacity(0.18), radius: 6, x: 0, y: 6)
+                .frame(height: 170)   // stays EXACT size — no change
+            
+            // CARD CONTENT
+            VStack(spacing: 7) {
+                // Price row
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(price)
+                        .font(.custom("Konkhmer Sleokchher", size: 40))
+                        .foregroundColor(mainTextColor)
+                    
+                    Text(period)
+                        .font(.custom("Konkhmer Sleokchher", size: 12))
+                        .foregroundColor(secondaryTextColor)
+                }
+                
+                // Save line
+                Text(saveLine)
+                    .font(.custom("Konkhmer Sleokchher", size: 12))
+                    .foregroundColor(accent)
+                
+                // 2-COLUMN PERKS
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), alignment: .leading),
+                    GridItem(.flexible(), alignment: .leading)
+                ], spacing: 8) {
+                    ForEach(bullets, id: \.self) { perk in
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "checkmark")
+                                .foregroundColor(mainTextColor)
+                            Text(perk)
+                                .font(.custom("Konkhmer Sleokchher", size: 11))
+                                .foregroundColor(mainTextColor)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)   // leaves room for label overlay
+            .frame(height: 170)
+            
+            // 🔥 TITLE OVERLAY (now sits inside the top of the box)
+            Text(label)
+                .font(.custom("Konkhmer Sleokchher", size: 14))
+                .foregroundColor(labelTextColor)
+                .offset(y: 20)   // adjust depth without affecting card size
+        }
+    }
+}
+
+
+#Preview {
+    SubscriptionView()
+}
