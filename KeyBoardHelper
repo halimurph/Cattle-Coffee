@@ -1,0 +1,24 @@
+import UIKit
+
+extension UIApplication {
+    var isKeyboardShown: Bool {
+        windows.first(where: { $0.isKeyWindow })?
+            .firstResponder != nil
+    }
+}
+extension UIView {
+    var firstResponder: UIView? {
+        if isFirstResponder { return self }
+        for subview in subviews {
+            if let responder = subview.firstResponder { return responder }
+        }
+        return nil
+    }
+}
+//
+//  KeyBoardHelper.swift
+//  beef+brew
+//
+//  Created by Hali Murphy on 12/1/25.
+//
+
