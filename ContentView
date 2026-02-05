@@ -1,0 +1,214 @@
+import SwiftUI
+
+struct ContentView: View {
+    @State private var showBanner = true
+    @State private var showLearnMore = false
+    @State private var showCoffeeDetail = false
+    @State private var selectedCoffee: CoffeeModel?
+    @State private var selectedTab = 0
+    @State private var cartCount = 0
+  //  @StateObject var cart = CartManager()
+    @State private var showSubscription = false
+  //  @StateObject var userSession = UserSession()
+    // ⬇️ these now come from the App as environment objects
+        @EnvironmentObject var cart: CartManager
+        @EnvironmentObject var userSession: UserSession
+        @EnvironmentObject var subscriptionManager: SubscriptionManager
+
+        // ⬇️ shared between Checkout + CoffeeDetailView
+        @State private var selectedOrderType: String = "One-time"
+    
+    // 🔐 New: basic auth state
+    @State private var isLoggedIn = false
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ZStack(alignment: .bottom) {
+
+                // ───────── MAIN TAB SWITCHING ─────────
+                Group {
+                    if selectedTab == 0 {
+                        ScrollView(.vertical, showsIndicators: false) {
+                            VStack(spacing: 0) {
+
+                                CoffeeMenuView { coffee in
+                                    selectedCoffee = coffee
+                                    withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                        showCoffeeDetail = true
+                                    }
+                                }
+                                .id("CoffeeMenu")
+
+                                NutritionalHighlightsView()
+
+                                HowItWorksView(onOrderNow: {
+                                    withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                        proxy.scrollTo("CoffeeMenu", anchor: .top)
+                                    }
+                                })
+
+                                SubscriptionView()
+                            }
+                            .padding(.top, showBanner ? -100 : -45)
+                        }
+                        .background(Color(red: 0.969, green: 0.949, blue: 0.929))
+
+                    } else if selectedTab == 1 {
+                        CheckoutView(
+                            selectedOrderType: $selectedOrderType,
+                            selectedTab: $selectedTab,
+                            showSubscriptionPopup: {
+                                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                    showSubscription = true
+                                }
+                            },
+                            showLearnMore: {
+                                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                    showLearnMore = true
+                                }
+                            }
+                        )
+                       // .environmentObject(userSession)
+                        //.environmentObject(cart)
+                        
+                    } else if selectedTab == 2 {
+                        if isLoggedIn {
+                            AccountMainView()
+                                .environmentObject(userSession)
+                        } else {
+                            SignInView {
+                                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                    isLoggedIn = true
+                                }
+                            }
+                            .environmentObject(userSession)
+                        }
+                    } else if selectedTab == 3 {
+                        CommunityView {
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                showLearnMore = true
+                            }
+                        }
+                    }
+                    }
+
+                // ───────── TOP BANNER ─────────
+                .safeAreaInset(edge: .top) {
+                    if showBanner && selectedTab == 0 {
+                        Banner(
+                            closeAction: {
+                                withAnimation { showBanner = false }
+                            },
+                            learnMoreAction: {
+                                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                    showLearnMore = true
+                                }
+                            }
+                        )
+                    }
+                }
+
+                // ───────── BOTTOM NAV BAR ─────────
+                .safeAreaInset(edge: .bottom) {
+                    if !showLearnMore && !showCoffeeDetail {
+                        BottomNavBar(selectedTab: $selectedTab)
+                            .frame(height: 30)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+
+                // ───────── POPUP: LEARN MORE ─────────
+                if showLearnMore {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                        .onTapGesture { withAnimation { showLearnMore = false } }
+
+                    LearnMoreView(closeAction: {
+                        withAnimation { showLearnMore = false }
+                    })
+                    .frame(maxWidth: .infinity)
+                    .frame(height: UIScreen.main.bounds.height)
+                    .background(Color(red: 0.969, green: 0.941, blue: 0.925))
+                    .cornerRadius(26)
+                    .shadow(radius: 25)
+                    .offset(y: showLearnMore ? 120 : UIScreen.main.bounds.height)
+                }
+
+                // ───────── POPUP: COFFEE DETAIL ─────────
+                if showCoffeeDetail, let selectedCoffee {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation { showCoffeeDetail = false }
+                        }
+
+                    CoffeeDetailView(
+                        coffee: selectedCoffee,
+                        coffeeImageName: selectedCoffee.imageName,
+                        coffeeName: selectedCoffee.name,
+                        caloriesText: "\(selectedCoffee.calories) cal",
+                        selectedTab: $selectedTab,
+                        selectedOrderType: $selectedOrderType,
+                        closeAction: {
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                showCoffeeDetail = false
+                            }
+                        }
+                    )
+                    .environmentObject(cart)
+                    .environmentObject(subscriptionManager)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: UIScreen.main.bounds.height)
+                    .background(Color(red: 0.969, green: 0.941, blue: 0.925))
+                    .cornerRadius(26)
+                    .shadow(radius: 25)
+                    .offset(y: showCoffeeDetail ? 120 : UIScreen.main.bounds.height)
+                }
+
+                // ───────── POPUP: SUBSCRIPTION ─────────
+                if showSubscription {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                showSubscription = false
+                            }
+                        }
+                    SubscriptionPopupView(
+                        closeAction: {
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                showSubscription = false
+                            }
+                        },
+                        onPlanSelected: { plan in
+                            userSession.currentPlan = plan
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                showSubscription = false
+                            }
+                        },
+                        plans: userSession.subscriptionPlans
+                    )
+
+                    .frame(maxWidth: .infinity)
+                    .frame(height: UIScreen.main.bounds.height)
+                    .background(Color(red: 0.969, green: 0.941, blue: 0.925))
+                    .cornerRadius(26)
+                    .shadow(radius: 25)
+                    .offset(y: showSubscription ? 120 : UIScreen.main.bounds.height)
+                }
+            }
+            .animation(.spring(response: 0.45, dampingFraction: 0.85),
+                       value: selectedTab)
+        }
+        .onAppear {
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        }
+    }
+}
+
+#Preview {
+    ContentView()
+        .environmentObject(CartManager())
+        .environmentObject(UserSession())
+        .environmentObject(SubscriptionManager())
+}
