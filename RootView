@@ -1,0 +1,24 @@
+import SwiftUI
+
+struct RootView: View {
+    @EnvironmentObject var userSession: UserSession
+
+    var body: some View {
+        if userSession.isLoggedIn {
+            // whatever your main tab / navigation is:
+            AccountMainView()
+        } else {
+            SignInView {
+                // when SignInView calls onAuthenticated, we flag logged in
+                userSession.isLoggedIn = true
+            }
+        }
+    }
+}
+//
+//  RootView.swift
+//  beef+brew
+//
+//  Created by Hali Murphy on 11/28/25.
+//
+
